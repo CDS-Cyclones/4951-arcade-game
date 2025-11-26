@@ -4,11 +4,10 @@ import random
 from enum import Enum
 
 pygame.init()
-
 # ==================== CONSTANTS ====================
 # Screen / World
-SCREEN_WIDTH = 1280
-SCREEN_HEIGHT = 1024
+SCREEN_WIDTH = 1025
+SCREEN_HEIGHT = 710
 FPS = 120
 GRAVITY = 0.6
 MAP_WIDTH = 2400
