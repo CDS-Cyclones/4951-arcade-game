@@ -8,7 +8,7 @@ pygame.init()
 # Screen / World
 SCREEN_WIDTH = 1025
 SCREEN_HEIGHT = 710
-FPS = 120
+FPS = 60
 GRAVITY = 0.6
 MAP_WIDTH = 2400
 MAP_HEIGHT = 1600
