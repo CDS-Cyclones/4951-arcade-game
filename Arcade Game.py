@@ -107,6 +107,10 @@ class Player:
         self.run_cycle = 0.0
         self.current_animation = "idle"
         self.idle_phase = 0.0
+        self.dash_cooldown = 0
+        self.dash_speed = 20
+        self.dash_duration = 10
+        self.dash_timer = 0
 
     def get_bounds(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)
@@ -189,9 +193,21 @@ class Player:
         if self.tagged_cooldown > 0:
             self.tagged_cooldown -= 1
 
+        # Handle dashing
+        if self.dash_timer > 0:
+            self.dash_timer -= 1
+        elif self.dash_cooldown > 0:
+            self.dash_cooldown -= 1
+
         # Friction and clamp to stop sliding
-        if self.on_ground and abs(self.vx) < 0.08:
+        if self.on_ground and abs(self.vx) < 0.08 and self.dash_timer == 0:
             self.vx = 0
+
+    def dash(self):
+        if self.dash_cooldown == 0 and self.dash_timer == 0:
+            self.dash_timer = self.dash_duration
+            self.dash_cooldown = FPS * 5  # 5 seconds cooldown
+            self.vx = self.dash_speed * self.direction
 
     def draw(self, surface, zoom, cam_x, cam_y):
         # Slight smoothing in idle only
@@ -646,8 +662,8 @@ class Game:
                         (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 10))
         
         # Controls guide
-        p1_text = self.font_small.render("P1: A / D move, W jump", True, BLACK)
-        p2_text = self.font_small.render("P2: LEFT / RIGHT move, UP jump", True, BLACK)
+        p1_text = self.font_small.render("P1: A / D move, W jump, R dash", True, BLACK)
+        p2_text = self.font_small.render("P2: LEFT / RIGHT move, UP jump, U dash", True, BLACK)
         self.screen.blit(p1_text, (10, 50))
         self.screen.blit(p2_text, (10, 75))
         
@@ -724,9 +740,13 @@ class Game:
                     self.player1.jump()
                 if event.key == pygame.K_UP:
                     self.player2.jump()
+                if event.key == pygame.K_r:
+                    self.player1.dash()
+                if event.key == pygame.K_u:
+                    self.player2.dash()
             else:
-                # Game over - restart on 6
-                if event.key == pygame.K_6:
+                # Game over - restart on W
+                if event.key == pygame.K_w:
                     self.reset()
 
     def reset(self):
