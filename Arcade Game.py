@@ -650,8 +650,8 @@ class Game:
                         (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 10))
         
         # Controls guide
-        p1_text = self.font_small.render("P1: A/D move, W jump", True, BLACK)
-        p2_text = self.font_small.render("P2: ← → move, ↑ jump", True, BLACK)
+        p1_text = self.font_small.render("P1: A / D move, W jump", True, BLACK)
+        p2_text = self.font_small.render("P2: LEFT / RIGHT move, UP jump", True, BLACK)
         self.screen.blit(p1_text, (10, 50))
         self.screen.blit(p2_text, (10, 75))
         
