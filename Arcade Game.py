@@ -725,8 +725,8 @@ class Game:
                 if event.key == pygame.K_UP:
                     self.player2.jump()
             else:
-                # Game over - restart on W
-                if event.key == pygame.K_w:
+                # Game over - restart on 6
+                if event.key == pygame.K_6:
                     self.reset()
 
     def reset(self):
