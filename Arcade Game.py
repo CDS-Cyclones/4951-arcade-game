@@ -108,8 +108,8 @@ class Player:
         self.current_animation = "idle"
         self.idle_phase = 0.0
         self.dash_cooldown = 0
-        self.dash_speed = 20
-        self.dash_duration = 10
+        self.dash_speed = 60
+        self.dash_duration = 20
         self.dash_timer = 0
 
     def get_bounds(self):
@@ -688,7 +688,7 @@ class Game:
                          SCREEN_HEIGHT // 2 - 60))
         
         # Instructions
-        info1 = self.font_main.render("Press W to restart", True, BLACK)
+        info1 = self.font_main.render("Press 6 to restart", True, BLACK)
         info2 = self.font_main.render("Press 5 to quit", True, BLACK)
         self.screen.blit(info1, 
                         (SCREEN_WIDTH // 2 - info1.get_width() // 2,
@@ -746,7 +746,7 @@ class Game:
                     self.player2.dash()
             else:
                 # Game over - restart on W
-                if event.key == pygame.K_w:
+                if event.key == pygame.K_6:
                     self.reset()
 
     def reset(self):
