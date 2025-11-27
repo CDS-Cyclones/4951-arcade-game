@@ -132,7 +132,7 @@ class Player:
         if self.y + self.height >= MAP_HEIGHT:
             self.y = MAP_HEIGHT - self.height
             self.vy = 0
-            self.on_ground = True
+            #self.on_ground = True COMMENTED OUT
             self.jumps_remaining = 2
         # Reset ground, then resolve collisions
         #self.on_ground = False COMMENTED OUT
