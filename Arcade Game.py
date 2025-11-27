@@ -139,51 +139,28 @@ class Player:
         player_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         for platform in platforms:
             if player_rect.colliderect(platform.rect):
-                # Amount of overlap on each side (all should be positive when colliding)
-                overlap_left = (self.x + self.width) - platform.rect.left     # how far player penetrates from left side
-                overlap_right = platform.rect.right - self.x                  # how far player penetrates from right side
-                overlap_top = (self.y + self.height) - platform.rect.top      # how far player penetrates from top (landing)
-                overlap_bottom = platform.rect.bottom - self.y                # how far player penetrates from bottom (hitting head)
-
-                # Choose the smallest penetration to resolve the collision
-                overlaps = {
-                        "left": overlap_left,
-                        "right": overlap_right,
-                        "top": overlap_top,
-                        "bottom": overlap_bottom
-                }
-
-                # Filter out any non-positive overlaps (safety)
-                overlaps = {k: v for k, v in overlaps.items() if v > 0}
-
-                if not overlaps:
-                        continue
-
-                # Find the side with minimal penetration
-                side = min(overlaps, key=overlaps.get)
-
-                if side == "top":
+                prev_y = self.y - self.vy
+                if self.vy >= 0 and prev_y + self.height <= platform.rect.top + 6:
+                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
                         self.y = platform.rect.top - self.height
                         self.vy = 0
                         self.on_ground = True
                         self.jumps_remaining = 2
-
-                elif side == "bottom":
+                elif self.vy < 0 and prev_y >= platform.rect.bottom - 2:
+                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
                         self.y = platform.rect.bottom
-                        if self.vy < 0:
-                                self.vy = 0
-                        self.on_ground = False
-
-                elif side == "left":
-                        self.x = platform.rect.left - self.width
-                        self.on_ground = False
-
-                elif side == "right":
-                        self.x = platform.rect.right
-                        self.on_ground = False
-
+                        self.on_ground = False #COMMENTED IN
+                        self.vy = 0
+                else:
+                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
+                        plat_center = platform.rect.centerx
+                        player_center = self.x + self.width / 2
+                        self.on_ground = False #COMMENTED IN
+                        if player_center < plat_center:
+                            self.x = platform.rect.left - self.width - 1
+                        else:
+                            self.x = platform.rect.right + 1
                 player_rect.update(self.x, self.y, self.width, self.height)
-
         
         # Animation state
         if not self.on_ground:
