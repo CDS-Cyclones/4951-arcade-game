@@ -2,7 +2,6 @@ import pygame
 import math
 import random
 from enum import Enum
-
 pygame.init()
 # ==================== CONSTANTS ====================
 # Screen / World
@@ -55,11 +54,9 @@ MOUNTAIN_LIGHT = (120, 140, 100)
 PLATFORM_BROWN = (139, 89, 19)
 PLATFORM_DARK = (101, 60, 14)
 
-
 class PlayerState(Enum):
     NORMAL = 1
     TAGGED = 2
-
 
 class Platform:
     def __init__(self, x, y, width, height):
@@ -73,12 +70,10 @@ class Platform:
         sw = max(1, int(self.rect.width * zoom))
         sh = max(1, int(self.rect.height * zoom))
         draw_rect = pygame.Rect(sx, sy, sw, sh)
-        
         # Frustum culling
         if (draw_rect.right < 0 or draw_rect.left > SCREEN_WIDTH or 
             draw_rect.bottom < 0 or draw_rect.top > SCREEN_HEIGHT):
             return
-            
         pygame.draw.rect(surface, self.color, draw_rect)
         pygame.draw.rect(surface, self.edge_color, draw_rect, max(1, int(3 * zoom)))
         pygame.draw.line(surface, (100, 150, 50),
@@ -132,14 +127,11 @@ class Player:
         elif self.x + self.width > MAP_WIDTH:
             self.x = MAP_WIDTH - self.width
             self.vx = 0
-
         if self.y + self.height >= MAP_HEIGHT:
             self.y = MAP_HEIGHT - self.height
             self.vy = 0
-            #self.on_ground = True COMMENTED OUT
             self.jumps_remaining = 2
         # Reset ground, then resolve collisions
-        #self.on_ground = False COMMENTED OUT
         player_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         for platform in platforms:
             if player_rect.colliderect(platform.rect):
@@ -153,13 +145,13 @@ class Player:
                 elif self.vy < 0 and prev_y >= platform.rect.bottom - 2:
                     if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
                         self.y = platform.rect.bottom
-                        self.on_ground = False #COMMENTED IN
+                        self.on_ground = False
                         self.vy = 0
                 else:
                     if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
                         plat_center = platform.rect.centerx
                         player_center = self.x + self.width / 2
-                        self.on_ground = False #COMMENTED IN
+                        self.on_ground = False
                         if player_center < plat_center:
                             self.x = platform.rect.left - self.width - 1
                         else:
@@ -214,7 +206,6 @@ class Player:
         used_zoom = zoom
         if self.current_animation == "idle":
             used_zoom = round(zoom, 3)
-
         # Breathing bob in idle
         bob = 0
         if self.current_animation == "idle":
@@ -482,11 +473,6 @@ class Camera:
         world_x = (screen_x + self.x) / self.zoom
         world_y = (screen_y + self.y) / self.zoom
         return world_x, world_y
-
-
-# Usage example in your Game class:
-# Replace the camera.update() call with:
-# self.camera.update(self.player1, self.player2)
 
 class GameState(Enum):
     PLAYING = 1
@@ -829,7 +815,6 @@ class Game:
             fy = random.randint(100, MAP_HEIGHT - 420)
             fp = Platform(fx, fy, fw, 36)
             platforms.append(fp)
-
         return platforms
 
     def run(self):
@@ -843,7 +828,6 @@ class Game:
             
             self.draw()
             self.clock.tick(FPS)
-        
         pygame.quit()
 
 
