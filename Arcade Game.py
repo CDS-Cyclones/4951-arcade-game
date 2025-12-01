@@ -126,53 +126,63 @@ class Player:
         elif self.x + self.width > MAP_WIDTH:
             self.x = MAP_WIDTH - self.width
             self.vx = 0
+
+        # Reset ground state before checking
+        self.on_ground = False
+
+        # Check world floor
         if self.y + self.height >= MAP_HEIGHT:
             self.y = MAP_HEIGHT - self.height
             self.vy = 0
+            self.on_ground = True
             self.jumps_remaining = 2
-        # Reset ground, then resolve collisions
+
+        # Resolve platform collisions
         player_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         for platform in platforms:
             if player_rect.colliderect(platform.rect):
                 prev_y = self.y - self.vy
-                if self.vy >= 0 and prev_y + self.height <= platform.rect.top + 6:
-                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
-                        self.y = platform.rect.top - self.height
-                        self.vy = 0
-                        self.on_ground = True
-                        self.jumps_remaining = 2
-                elif self.vy < 0 and prev_y >= platform.rect.bottom - 2:
-                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
-                        self.y = platform.rect.bottom
-                        self.on_ground = False
-                        self.vy = 0
+                prev_bottom = prev_y + self.height
+
+                # Landing on top of platform
+                if self.vy > 0 and prev_bottom <= platform.rect.top + 8:
+                    self.y = platform.rect.top - self.height
+                    self.vy = 0
+                    self.on_ground = True
+                    self.jumps_remaining = 2
+                # Hitting head on bottom of platform
+                elif self.vy < 0 and prev_y >= platform.rect.bottom - 4:
+                    self.y = platform.rect.bottom
+                    self.vy = 0
+                # Side collision
                 else:
-                    if (self.x + self.width) > platform.rect.left and self.x < (platform.rect.right):
-                        plat_center = platform.rect.centerx
-                        player_center = self.x + self.width / 2
-                        self.on_ground = False
-                        if player_center < plat_center:
-                            self.x = platform.rect.left - self.width - 1
-                        else:
-                            self.x = platform.rect.right + 1
+                    prev_x = self.x - self.vx
+                    if prev_x + self.width <= platform.rect.left:
+                        # Hit from left
+                        self.x = platform.rect.left - self.width
+                        self.vx = 0
+                    elif prev_x >= platform.rect.right:
+                        # Hit from right
+                        self.x = platform.rect.right
+                        self.vx = 0
+
                 player_rect.update(self.x, self.y, self.width, self.height)
-        
-        # Animation state
-        if not self.on_ground:
-            self.current_animation = "jumping"
-        elif abs(self.vx) > RUN_THRESHOLD:
+
+        # Animation state (rest of the method stays the same)
+        if abs(self.vx) > RUN_THRESHOLD:
             self.current_animation = "running"
             self.run_cycle += abs(self.vx) * 0.08
             if self.run_cycle > 4:
                 self.run_cycle -= 4
-        else:
+        elif self.on_ground:
             self.current_animation = "idle"
             self.run_cycle = 0
-            self.idle_phase += 0.04  # breathing speed
+            self.idle_phase += 0.04
             if self.idle_phase > math.tau:
                 self.idle_phase -= math.tau
-
-        # Glow for tagged
+        elif not self.on_ground:
+            self.current_animation = "jumping"
+        
         if self.is_tagged:
             self.glow_intensity = min(self.glow_intensity + 0.15, 1.0)
             self.tagged_timer = 0
@@ -184,13 +194,11 @@ class Player:
         if self.tagged_cooldown > 0:
             self.tagged_cooldown -= 1
 
-        # Handle dashing
         if self.dash_timer > 0:
             self.dash_timer -= 1
         elif self.dash_cooldown > 0:
             self.dash_cooldown -= 1
 
-        # Friction and clamp to stop sliding
         if self.on_ground and abs(self.vx) < 0.08 and self.dash_timer == 0:
             self.vx = 0
 
