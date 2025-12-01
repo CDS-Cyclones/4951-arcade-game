@@ -102,8 +102,8 @@ class Player:
         self.current_animation = "idle"
         self.idle_phase = 0.0
         self.dash_cooldown = 0
-        self.dash_speed = 60
-        self.dash_duration = 20
+        self.dash_speed = 20
+        self.dash_duration = 10
         self.dash_timer = 0
 
     def get_bounds(self):
@@ -128,7 +128,7 @@ class Player:
             self.vx = 0
 
         # Reset ground state before checking
-        self.on_ground = False
+        #self.on_ground = False
 
         # Check world floor
         if self.y + self.height >= MAP_HEIGHT:
@@ -581,63 +581,71 @@ class Game:
     def update(self):
         """Update game state - called every frame during gameplay."""
         keys = pygame.key.get_pressed()
-        
+
         # Player 1 controls (WASD)
         p1_speed = BASE_SPEED * (TAGGED_SPEED_BOOST if self.player1.is_tagged else 1.0)
+
+        # Movement - update direction even during dash
         if keys[pygame.K_a]:
-            self.player1.vx = -p1_speed
             self.player1.direction = -1
+            if self.player1.dash_timer == 0:
+                self.player1.vx = -p1_speed
         elif keys[pygame.K_d]:
-            self.player1.vx = p1_speed
             self.player1.direction = 1
+            if self.player1.dash_timer == 0:
+                self.player1.vx = p1_speed
         else:
-            self.player1.vx *= FRICTION
-        
+            if self.player1.dash_timer == 0:
+                self.player1.vx *= FRICTION
+
         # Player 2 controls (Arrow keys)
         p2_speed = BASE_SPEED * (TAGGED_SPEED_BOOST if self.player2.is_tagged else 1.0)
-        if keys[pygame.K_LEFT]:
-            self.player2.vx = -p2_speed
-            self.player2.direction = -1
-        elif keys[pygame.K_RIGHT]:
-            self.player2.vx = p2_speed
-            self.player2.direction = 1
-        else:
-            self.player2.vx *= FRICTION
         
+        # Movement - update direction even during dash
+        if keys[pygame.K_LEFT]:
+            self.player2.direction = -1
+            if self.player2.dash_timer == 0:
+                self.player2.vx = -p2_speed
+        elif keys[pygame.K_RIGHT]:
+            self.player2.direction = 1
+            if self.player2.dash_timer == 0:
+                self.player2.vx = p2_speed
+        else:
+            if self.player2.dash_timer == 0:
+                self.player2.vx *= FRICTION
+
         # Update physics
         self.player1.update(self.platforms)
         self.player2.update(self.platforms)
-        
+
         # Check for tagging
         self.check_tag()
         if self.tag_timer > 0:
             self.tag_timer -= 1
-        
+
         # Accumulate tagged time for scoring
         if self.state == GameState.PLAYING:
             if self.player1.is_tagged:
                 self.p1_tag_time += 1
             if self.player2.is_tagged:
                 self.p2_tag_time += 1
-        
-        # Update camera (NEW SIMPLIFIED CALL)
+
+        # Update camera
         self.camera.update(self.player1, self.player2)
-        
+
         # Update game timer
         if self.state == GameState.PLAYING:
             self.frame_counter += 1
             if self.frame_counter >= FPS:
                 self.frame_counter = 0
                 self.match_seconds -= 1
-                
+
                 if self.match_seconds <= 0:
-                    # Determine winner (whoever is NOT tagged wins)
                     if self.player1.is_tagged and not self.player2.is_tagged:
                         self.state = GameState.GAME_OVER_P2
                     elif self.player2.is_tagged and not self.player1.is_tagged:
                         self.state = GameState.GAME_OVER_P1
                     else:
-                        # Tie - default to P2 win
                         self.state = GameState.GAME_OVER_P2
 
     def draw_ui(self):
