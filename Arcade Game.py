@@ -734,7 +734,7 @@ class Game:
         instructions = [
             "Player 1: A/D to move, W to jump, R to dash",
             "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
-            "Press SPACE to start the game"
+            "Press 1 Player to start the game"
         ]
 
         for i, text in enumerate(instructions):
@@ -782,7 +782,7 @@ class Game:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_1:
                     self.show_start_screen = False
             else:
                 if event.key == pygame.K_5:
