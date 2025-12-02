@@ -734,10 +734,7 @@ class Game:
         instructions = [
             "Player 1: A/D to move, W to jump, R to dash",
             "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
-            "Press SPACE to start the game",
-            "Press 1 for Default Map",
-            "Press 6 for Floating Platforms Map",
-            "Press 2 for Narrow Platforms Map"
+            "Press SPACE to start the game"
         ]
 
         for i, text in enumerate(instructions):
@@ -785,14 +782,7 @@ class Game:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
-                if event.key == pygame.K_1:
-                    self.platforms = self.generate_platforms()
-                    self.show_start_screen = False
-                elif event.key == pygame.K_6:
-                    self.platforms = self.generate_floating_platforms()
-                    self.show_start_screen = False
-                elif event.key == pygame.K_2:
-                    self.platforms = self.generate_narrow_platforms()
+                if event.key == pygame.K_SPACE:
                     self.show_start_screen = False
             else:
                 if event.key == pygame.K_5:
