@@ -724,24 +724,27 @@ class Game:
                          SCREEN_HEIGHT // 2 + 50))
 
     def draw_start_screen(self):
-        """Draw the start screen."""
+        """Draw the start screen with map selection options."""
         self.screen.fill(SKY_BOTTOM)
         title_surface = self.font_big.render("Two Player Tag Game", True, BLACK)
         self.screen.blit(title_surface, 
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
-                          SCREEN_HEIGHT // 2 - 100))
+                          SCREEN_HEIGHT // 2 - 150))
 
         instructions = [
             "Player 1: A/D to move, W to jump, R to dash",
             "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
-            "Press SPACE to start the game"
+            "Press SPACE to start the game",
+            "Press 1 for Default Map",
+            "Press 6 for Floating Platforms Map",
+            "Press 2 for Narrow Platforms Map"
         ]
 
         for i, text in enumerate(instructions):
             text_surface = self.font_main.render(text, True, BLACK)
             self.screen.blit(text_surface, 
                              (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
-                              SCREEN_HEIGHT // 2 + i * 40))
+                              SCREEN_HEIGHT // 2 + i * 40 - 40))
 
         pygame.display.flip()
 
@@ -782,7 +785,14 @@ class Game:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_1:
+                    self.platforms = self.generate_platforms()
+                    self.show_start_screen = False
+                elif event.key == pygame.K_6:
+                    self.platforms = self.generate_floating_platforms()
+                    self.show_start_screen = False
+                elif event.key == pygame.K_2:
+                    self.platforms = self.generate_narrow_platforms()
                     self.show_start_screen = False
             else:
                 if event.key == pygame.K_5:
@@ -882,6 +892,28 @@ class Game:
             fy = random.randint(100, MAP_HEIGHT - 420)
             fp = Platform(fx, fy, fw, 36)
             platforms.append(fp)
+        return platforms
+
+    def generate_floating_platforms(self):
+        """Generate a map with mostly floating platforms."""
+        platforms = []
+        platforms.append(Platform(0, MAP_HEIGHT - GROUND_HEIGHT, MAP_WIDTH, GROUND_HEIGHT))
+        for _ in range(20):
+            fw = random.randint(100, 300)
+            fx = random.randint(50, MAP_WIDTH - fw - 50)
+            fy = random.randint(100, MAP_HEIGHT - 300)
+            platforms.append(Platform(fx, fy, fw, 40))
+        return platforms
+
+    def generate_narrow_platforms(self):
+        """Generate a map with narrow and challenging platforms."""
+        platforms = []
+        platforms.append(Platform(0, MAP_HEIGHT - GROUND_HEIGHT, MAP_WIDTH, GROUND_HEIGHT))
+        for _ in range(15):
+            nw = random.randint(80, 150)
+            nx = random.randint(50, MAP_WIDTH - nw - 50)
+            ny = random.randint(100, MAP_HEIGHT - 300)
+            platforms.append(Platform(nx, ny, nw, 30))
         return platforms
 
     def run(self):
