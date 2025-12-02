@@ -671,6 +671,30 @@ class Game:
         self.screen.blit(timer_surface, 
                         (SCREEN_WIDTH - timer_surface.get_width() - 10, 10))
 
+    def draw_dash_cooldown(self):
+        """Draw dash cooldown bars for both players."""
+        # Player 1 Dash Cooldown Bar
+        p1_bar_width = 200
+        p1_bar_height = 20
+        p1_bar_x = 10
+        p1_bar_y = SCREEN_HEIGHT - p1_bar_height - 10
+        p1_cooldown_ratio = 1 - (self.player1.dash_cooldown / (FPS * 5))
+        p1_fill_width = int(p1_bar_width * p1_cooldown_ratio)
+
+        pygame.draw.rect(self.screen, BLACK, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height))
+        pygame.draw.rect(self.screen, SHIRT_RED, (p1_bar_x, p1_bar_y, p1_fill_width, p1_bar_height))
+
+        # Player 2 Dash Cooldown Bar
+        p2_bar_width = 200
+        p2_bar_height = 20
+        p2_bar_x = SCREEN_WIDTH - p2_bar_width - 10
+        p2_bar_y = SCREEN_HEIGHT - p2_bar_height - 10
+        p2_cooldown_ratio = 1 - (self.player2.dash_cooldown / (FPS * 5))
+        p2_fill_width = int(p2_bar_width * p2_cooldown_ratio)
+
+        pygame.draw.rect(self.screen, BLACK, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height))
+        pygame.draw.rect(self.screen, SHIRT_BLUE, (p2_bar_x, p2_bar_y, p2_fill_width, p2_bar_height))
+
     def draw_game_over(self):
         """Draw game over screen with winner announcement."""
         if self.state == GameState.GAME_OVER_P1:
@@ -721,6 +745,7 @@ class Game:
         # Draw UI overlay
         if self.state == GameState.PLAYING:
             self.draw_ui()
+            self.draw_dash_cooldown()
         else:
             self.draw_game_over()
         
