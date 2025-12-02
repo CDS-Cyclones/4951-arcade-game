@@ -438,9 +438,11 @@ class Camera:
         # 5. Apply vertical constraints to keep ground visible
         half_view_height = (SCREEN_HEIGHT / self.target_zoom) / 2
         
-        # Don't let camera go below ground line
-        if center_y + half_view_height > self.ground_top:
-            center_y = self.ground_top - half_view_height
+        # Adjust the camera to show a bit more ground
+        ground_offset = 50  # Pixels to lower the camera view
+        dash_bar_height = 40  # Additional offset to ensure dash bars don't cover the ground
+        if center_y + half_view_height > self.ground_top + ground_offset + dash_bar_height:
+            center_y = self.ground_top - half_view_height + ground_offset + dash_bar_height
         
         # Don't let camera go above world top
         if center_y - half_view_height < 0:
@@ -453,7 +455,7 @@ class Camera:
         
         # 7. Clamp camera to world boundaries
         max_cam_x = max(0, MAP_WIDTH * self.target_zoom - SCREEN_WIDTH)
-        max_cam_y = max(0, self.ground_top * self.target_zoom - SCREEN_HEIGHT)
+        max_cam_y = max(0, self.ground_top * self.target_zoom - SCREEN_HEIGHT) #ADDED PLUS 10
         
         self.target_x = max(0, min(self.target_x, max_cam_x))
         self.target_y = max(0, min(self.target_y, max_cam_y))
@@ -525,6 +527,7 @@ class Game:
         self.font_main = pygame.font.Font(None, 32)
         self.font_small = pygame.font.Font(None, 20)
         self.font_big = pygame.font.Font(None, 64)
+        self.show_start_screen = True  # Flag to show the start screen
 
     def create_background(self):
         """
@@ -720,6 +723,28 @@ class Game:
                         (SCREEN_WIDTH // 2 - info2.get_width() // 2,
                          SCREEN_HEIGHT // 2 + 50))
 
+    def draw_start_screen(self):
+        """Draw the start screen."""
+        self.screen.fill(SKY_BOTTOM)
+        title_surface = self.font_big.render("Two Player Tag Game", True, BLACK)
+        self.screen.blit(title_surface, 
+                         (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
+                          SCREEN_HEIGHT // 2 - 100))
+
+        instructions = [
+            "Player 1: A/D to move, W to jump, R to dash",
+            "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
+            "Press SPACE to start the game"
+        ]
+
+        for i, text in enumerate(instructions):
+            text_surface = self.font_main.render(text, True, BLACK)
+            self.screen.blit(text_surface, 
+                             (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
+                              SCREEN_HEIGHT // 2 + i * 40))
+
+        pygame.display.flip()
+
     def draw(self):
         """Main draw method - renders everything."""
         # Draw pre-rendered background (HUGE performance boost!)
@@ -756,22 +781,26 @@ class Game:
         if event.type == pygame.QUIT:
             self.running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_5:
-                self.running = False
-            
-            if self.state == GameState.PLAYING:
-                if event.key == pygame.K_w:
-                    self.player1.jump()
-                if event.key == pygame.K_UP:
-                    self.player2.jump()
-                if event.key == pygame.K_r:
-                    self.player1.dash()
-                if event.key == pygame.K_u:
-                    self.player2.dash()
+            if self.show_start_screen:
+                if event.key == pygame.K_SPACE:
+                    self.show_start_screen = False
             else:
-                # Game over - restart on W
-                if event.key == pygame.K_6:
-                    self.reset()
+                if event.key == pygame.K_5:
+                    self.running = False
+                
+                if self.state == GameState.PLAYING:
+                    if event.key == pygame.K_w:
+                        self.player1.jump()
+                    if event.key == pygame.K_UP:
+                        self.player2.jump()
+                    if event.key == pygame.K_r:
+                        self.player1.dash()
+                    if event.key == pygame.K_u:
+                        self.player2.dash()
+                else:
+                    # Game over - restart on W
+                    if event.key == pygame.K_6:
+                        self.reset()
 
     def reset(self):
         """Reset game state for a new match."""
@@ -860,11 +889,15 @@ class Game:
         while self.running:
             for event in pygame.event.get():
                 self.handle_event(event)
-            
-            if self.state == GameState.PLAYING:
+
+            if self.show_start_screen:
+                self.draw_start_screen()
+            elif self.state == GameState.PLAYING:
                 self.update()
-            
-            self.draw()
+                self.draw()
+            elif self.state != GameState.PLAYING:
+                self.draw()
+
             self.clock.tick(FPS)
         pygame.quit()
 
