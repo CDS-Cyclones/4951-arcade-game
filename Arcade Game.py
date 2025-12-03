@@ -903,6 +903,11 @@ class Game:
             fx = random.randint(50, MAP_WIDTH - fw - 50)
             fy = random.randint(100, MAP_HEIGHT - 300)
             platforms.append(Platform(fx, fy, fw, 40))
+        
+        # Set low gravity for this map
+        global GRAVITY
+        GRAVITY = 0.2
+        
         return platforms
 
     def generate_narrow_platforms(self):
