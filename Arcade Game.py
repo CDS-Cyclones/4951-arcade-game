@@ -993,7 +993,7 @@ class Game:
         p2_preview_y = 150
         p2_label = self.font_big.render("Player 2", True, BLACK)
         self.screen.blit(p2_label, (p2_preview_x - p2_label.get_width() // 2, 60))
-        p2_inst = tiny_font.render("(← → to cycle)", True, (80, 80, 80))
+        p2_inst = tiny_font.render("(LEFT / RIGHT to cycle)", True, (80, 80, 80))
         self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 95))
 
         # Draw player 2 preview (slightly larger)
@@ -1039,8 +1039,7 @@ class Game:
         # Confirmation instruction
         space_text = self.font_main.render("Press SPACE to confirm and continue to map selection", True, BLACK)
         self.screen.blit(space_text,
-                         (SCREEN_WIDTH // 2 - space_text.get_width() // 2,
-                          SCREEN_HEIGHT - 60))
+                         (SCREEN_WIDTH // 2 - space_text.get_width() // 2, SCREEN_HEIGHT - 60))
 
         pygame.display.flip()
     
