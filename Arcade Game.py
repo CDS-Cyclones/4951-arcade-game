@@ -835,15 +835,15 @@ class Game:
             pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
         
         # Draw mountains at consistent positions (same across all previews)
-        # Mountain 1 (left) - upside-down darker shade
+        # Mountain 1 (left) - darker shade
         mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points1)
-        # Mountain 2 (center) - upside-down lighter shade
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points1)
+        # Mountain 2 (center) - lighter shade
         mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_LIGHT, mountain_points2)
-        # Mountain 3 (right) - upside-down darker shade
+        pygame.draw.polygon(self.screen, MOUNTAIN_LIGHT, mountain_points2)
+        # Mountain 3 (right) - darker shade
         mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points3)
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points3)
         
         # Draw connected clouds (different spot from floating platforms preview)
         pygame.draw.circle(self.screen, WHITE, (x + 25, y + 20), 7)
@@ -875,15 +875,15 @@ class Game:
             pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
         
         # Draw mountains at consistent positions (same as other previews)
-        # Mountain 1 (left) - darker shade
+        # Mountain 1 (left) - upside-down darker shade
         mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
-        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points1)
-        # Mountain 2 (center) - lighter shade
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points1)
+        # Mountain 2 (center) - upside-down lighter shade
         mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
-        pygame.draw.polygon(self.screen, MOUNTAIN_LIGHT, mountain_points2)
-        # Mountain 3 (right) - darker shade
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_LIGHT, mountain_points2)
+        # Mountain 3 (right) - upside-down darker shade
         mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
-        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points3)
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points3)
         
         # Draw connected dark grey clouds (different spot from default map preview)
         pygame.draw.circle(self.screen, GREY_CLOUD, (x + 35, y + 20), 6)
@@ -959,12 +959,12 @@ class Game:
         tiny_font = pygame.font.Font(None, 20)
         
         # Player 1 Section (centered on left half)
-        p1_preview_x = SCREEN_WIDTH // 4
-        p1_preview_y = 150
+        p1_preview_x = SCREEN_WIDTH // 4 - 100
+        p1_preview_y = 200
         p1_label = self.font_big.render("Player 1", True, BLACK)
         self.screen.blit(p1_label, (p1_preview_x - p1_label.get_width() // 2, 60))
         p1_inst = tiny_font.render("(A/D to cycle)", True, (80, 80, 80))
-        self.screen.blit(p1_inst, (p1_preview_x - p1_inst.get_width() // 2, 95))
+        self.screen.blit(p1_inst, (p1_preview_x - p1_inst.get_width() // 2, 120))
 
         # Draw player 1 preview (slightly larger)
         self.draw_player_preview(self.screen, p1_preview_x, p1_preview_y, self.player1.color_shirt, 2.4)
@@ -989,12 +989,12 @@ class Game:
             self.screen.blit(color_surface, (cx, 350 + i * 22))
 
         # Player 2 Section (centered on right half)
-        p2_preview_x = (SCREEN_WIDTH * 3) // 4
-        p2_preview_y = 150
+        p2_preview_x = (SCREEN_WIDTH * 3) // 4 + 100
+        p2_preview_y = 200
         p2_label = self.font_big.render("Player 2", True, BLACK)
         self.screen.blit(p2_label, (p2_preview_x - p2_label.get_width() // 2, 60))
         p2_inst = tiny_font.render("(LEFT / RIGHT to cycle)", True, (80, 80, 80))
-        self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 95))
+        self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 120))
 
         # Draw player 2 preview (slightly larger)
         self.draw_player_preview(self.screen, p2_preview_x, p2_preview_y, self.player2.color_shirt, 2.4)
@@ -1018,23 +1018,7 @@ class Game:
             cx = p2_preview_x - color_surface.get_width() // 2
             self.screen.blit(color_surface, (cx, 350 + i * 22))
         
-        # Color options for player 2
-        for i, (name, color) in enumerate(all_colors):
-            is_selected = self.player2.color_shirt == color
-            is_taken = color == self.player1.color_shirt
-            
-            if is_selected:
-                color_text = f"> {name} <"
-                text_color = color
-            elif is_taken:
-                color_text = f"{name} (X)"
-                text_color = (150, 150, 150)
-            else:
-                color_text = f"{name}"
-                text_color = BLACK
-            
-            color_surface = tiny_font.render(color_text, True, text_color)
-            self.screen.blit(color_surface, (SCREEN_WIDTH - 250, 350 + i * 20))
+        # (duplicate color list removed)
 
         # Confirmation instruction
         space_text = self.font_main.render("Press SPACE to confirm and continue to map selection", True, BLACK)
@@ -1173,6 +1157,15 @@ class Game:
                     self.platforms = self.generate_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_6:
+                    # Floating map uses upside-down sky and mountain colors and grey clouds
+                    GRAVITY = 0.5
+                    self.current_sky_top = UPSIDE_DOWN_SKY_TOP
+                    self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
+                    self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
+                    self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
+                    self.current_cloud_color = GREY_CLOUD
+                    self.background_surface = self.create_background()
+
                     self.platforms = self.generate_floating_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_2:
