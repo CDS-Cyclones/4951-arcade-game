@@ -501,6 +501,12 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
+        # Current sky and mountain colors (can be modified for special maps) - MUST be before create_background()
+        self.current_sky_top = SKY_TOP
+        self.current_sky_bottom = SKY_BOTTOM
+        self.current_mountain_light = MOUNTAIN_LIGHT
+        self.current_mountain_dark = MOUNTAIN_DARK
+        
         # Initialize world
         self.platforms = self.generate_platforms()
         self.ground_top = MAP_HEIGHT - GROUND_HEIGHT
@@ -542,9 +548,9 @@ class Game:
         bg = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         for y in range(SCREEN_HEIGHT):
             ratio = y / SCREEN_HEIGHT
-            r = int(SKY_TOP[0] + (SKY_BOTTOM[0] - SKY_TOP[0]) * ratio)
-            g = int(SKY_TOP[1] + (SKY_BOTTOM[1] - SKY_TOP[1]) * ratio)
-            b = int(SKY_TOP[2] + (SKY_BOTTOM[2] - SKY_TOP[2]) * ratio)
+            r = int(self.current_sky_top[0] + (self.current_sky_bottom[0] - self.current_sky_top[0]) * ratio)
+            g = int(self.current_sky_top[1] + (self.current_sky_bottom[1] - self.current_sky_top[1]) * ratio)
+            b = int(self.current_sky_top[2] + (self.current_sky_bottom[2] - self.current_sky_top[2]) * ratio)
             pygame.draw.line(bg, (r, g, b), (0, y), (SCREEN_WIDTH, y))
         
         # Draw mountains on the background
@@ -558,14 +564,14 @@ class Game:
             (1200, 580), (1500, 550), (1800, 580), (2100, 500), 
             (2400, 650), (2400, 1050), (0, 1050)
         ]
-        pygame.draw.polygon(surface, MOUNTAIN_LIGHT, points_far)
+        pygame.draw.polygon(surface, self.current_mountain_light, points_far)
         
         points_near = [
             (0, 1050), (250, 580), (550, 680), (750, 550), 
             (1000, 680), (1200, 600), (1500, 650), (1800, 600), 
             (2100, 700), (2400, 600), (2400, 1050)
         ]
-        pygame.draw.polygon(surface, MOUNTAIN_DARK, points_near)
+        pygame.draw.polygon(surface, self.current_mountain_dark, points_near)
 
     def draw_cloud(self, surface, x, y, size):
         """Draw a simple cloud."""
@@ -827,17 +833,34 @@ class Game:
 
     def handle_event(self, event):
         """Handle pygame events."""
+        global GRAVITY
         if event.type == pygame.QUIT:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
                 if event.key == pygame.K_1:
+                    # Reset colors and gravity to defaults for normal map
+                    GRAVITY = 0.5
+                    self.current_sky_top = SKY_TOP
+                    self.current_sky_bottom = SKY_BOTTOM
+                    self.current_mountain_light = MOUNTAIN_LIGHT
+                    self.current_mountain_dark = MOUNTAIN_DARK
+                    self.background_surface = self.create_background()
+                    
                     self.platforms = self.generate_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_6:
                     self.platforms = self.generate_floating_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_2:
+                    # Reset colors and gravity to defaults for narrow platforms
+                    GRAVITY = 0.5
+                    self.current_sky_top = SKY_TOP
+                    self.current_sky_bottom = SKY_BOTTOM
+                    self.current_mountain_light = MOUNTAIN_LIGHT
+                    self.current_mountain_dark = MOUNTAIN_DARK
+                    self.background_surface = self.create_background()
+                    
                     self.platforms = self.generate_narrow_platforms()
                     self.show_start_screen = False
             else:
@@ -860,6 +883,7 @@ class Game:
 
     def reset(self):
         """Reset game state for a new match."""
+        global GRAVITY
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
         self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
         self.player2 = Player(2100, ground_spawn_y, 2, BLUE, BLUE)
@@ -874,8 +898,18 @@ class Game:
         self.frame_counter = 0
         self.state = GameState.PLAYING
         
+        # Reset colors and gravity to defaults
+        GRAVITY = 0.5
+        self.current_sky_top = SKY_TOP
+        self.current_sky_bottom = SKY_BOTTOM
+        self.current_mountain_light = MOUNTAIN_LIGHT
+        self.current_mountain_dark = MOUNTAIN_DARK
+        
         # Regenerate platforms for variety
         self.platforms = self.generate_platforms()
+        
+        # Regenerate background with reset colors
+        self.background_surface = self.create_background()
         
         # Reset camera
         self.camera = Camera(self.ground_top)
@@ -953,9 +987,15 @@ class Game:
         # Set low gravity for this map
         global GRAVITY
         GRAVITY = 0.2
-        #LET DYLAN INSERT CODE HERE
         
+        # Switch to upside down sky and mountains
+        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
+        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
+        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
+        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
         
+        # Regenerate background with new colors
+        self.background_surface = self.create_background()
         
         return platforms
 
