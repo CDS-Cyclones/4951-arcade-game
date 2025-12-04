@@ -953,6 +953,9 @@ class Game:
         # Set low gravity for this map
         global GRAVITY
         GRAVITY = 0.2
+        #LET DYLAN INSERT CODE HERE
+        
+        
         
         return platforms
 
