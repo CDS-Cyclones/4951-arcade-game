@@ -672,17 +672,18 @@ class Game:
 
     def draw_ui(self):
         """Draw HUD elements during gameplay."""
-        # Tag status banner
+        # Tag status banner (show which player is 'it' using their selected color)
         if self.player1.is_tagged:
             tagged_text = "PLAYER 1 IS IT!"
-            color = SHIRT_RED
+            color = self.player1.color_shirt
         else:
             tagged_text = "PLAYER 2 IS IT!"
-            color = SHIRT_BLUE
-        
+            color = self.player2.color_shirt
+
         text_surface = self.font_main.render(tagged_text, True, color)
+        # place banner just under the top UI (dash bars)
         self.screen.blit(text_surface, 
-                        (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 10))
+                        (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 10 + 15 + 4))
         
         # Controls guide
         p1_text = self.font_small.render("P1: A / D move, W jump, R dash", True, BLACK)
@@ -725,10 +726,10 @@ class Game:
         """Draw game over screen with winner announcement."""
         if self.state == GameState.GAME_OVER_P1:
             title = "PLAYER 1 WINS!"
-            color = SHIRT_RED
+            color = self.player1.color_shirt
         else:
             title = "PLAYER 2 WINS!"
-            color = SHIRT_BLUE
+            color = self.player2.color_shirt
         
         # Title
         title_surface = self.font_big.render(title, True, color)
