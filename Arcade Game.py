@@ -753,6 +753,47 @@ class Game:
 
         pygame.display.flip()
 
+    def draw_color_selection_screen(self):
+        """Draw the color selection screen."""
+        self.screen.fill(SKY_BOTTOM)
+        title_surface = self.font_big.render("Select Player Colors", True, BLACK)
+        self.screen.blit(title_surface, 
+                         (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
+                          SCREEN_HEIGHT // 2 - 150))
+
+        instructions = [
+            "Player 1: Press R for Red, B for Blue",
+            "Player 2: Press G for Green, Y for Yellow",
+            "Press SPACE to confirm selections"
+        ]
+
+        for i, text in enumerate(instructions):
+            text_surface = self.font_main.render(text, True, BLACK)
+            self.screen.blit(text_surface, 
+                             (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
+                              SCREEN_HEIGHT // 2 + i * 40 - 40))
+
+        pygame.display.flip()
+
+    def handle_color_selection_event(self, event):
+        """Handle events during the color selection screen."""
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_r:
+                self.player1.color_primary = RED
+                self.player1.color_shirt = RED
+            elif event.key == pygame.K_b:
+                self.player1.color_primary = BLUE
+                self.player1.color_shirt = BLUE
+            elif event.key == pygame.K_g:
+                self.player2.color_primary = (0, 255, 0)  # Green
+                self.player2.color_shirt = (0, 255, 0)
+            elif event.key == pygame.K_y:
+                self.player2.color_primary = (255, 255, 0)  # Yellow
+                self.player2.color_shirt = (255, 255, 0)
+            elif event.key == pygame.K_SPACE:
+                self.show_color_selection_screen = False
+                self.show_start_screen = True
+
     def draw(self):
         """Main draw method - renders everything."""
         # Draw pre-rendered background (HUGE performance boost!)
@@ -928,11 +969,17 @@ class Game:
 
     def run(self):
         """Main game loop."""
+        self.show_color_selection_screen = True  # Add flag for color selection screen
         while self.running:
             for event in pygame.event.get():
-                self.handle_event(event)
+                if self.show_color_selection_screen:
+                    self.handle_color_selection_event(event)
+                else:
+                    self.handle_event(event)
 
-            if self.show_start_screen:
+            if self.show_color_selection_screen:
+                self.draw_color_selection_screen()
+            elif self.show_start_screen:
                 self.draw_start_screen()
             elif self.state == GameState.PLAYING:
                 self.update()
