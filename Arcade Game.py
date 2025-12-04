@@ -43,6 +43,10 @@ GREY_CLOUD = (60, 60, 70) #(60,60,70) NORMAL VALUE
 BLACK = (0, 0, 0)
 RED = (220, 50, 50)
 BLUE = (50, 100, 220)
+GREEN = (0, 255, 0)
+YELLOW = (255, 255, 0)
+PURPLE = (200, 50, 200)
+ORANGE = (255, 165, 0)
 SHIRT_RED = (220, 50, 50)
 SHIRT_BLUE = (50, 100, 220)
 SKY_TOP = (115, 156, 255) #(115, 156, 255) NORMAL VALUE
@@ -506,6 +510,7 @@ class Game:
         self.current_sky_bottom = SKY_BOTTOM
         self.current_mountain_light = MOUNTAIN_LIGHT
         self.current_mountain_dark = MOUNTAIN_DARK
+        self.current_cloud_color = WHITE
         
         # Initialize world
         self.platforms = self.generate_platforms()
@@ -538,7 +543,12 @@ class Game:
         self.font_main = pygame.font.Font(None, 32)
         self.font_small = pygame.font.Font(None, 20)
         self.font_big = pygame.font.Font(None, 64)
-        self.show_start_screen = True  # Flag to show the start screen
+        self.font_huge = pygame.font.Font(None, 100)
+        
+        # Screen flags
+        self.show_title_screen = True
+        self.show_color_selection_screen = False
+        self.show_start_screen = False
 
     def create_background(self):
         """
@@ -575,9 +585,9 @@ class Game:
 
     def draw_cloud(self, surface, x, y, size):
         """Draw a simple cloud."""
-        pygame.draw.circle(surface, WHITE, (x, y), size)
-        pygame.draw.circle(surface, WHITE, (x + size, y), size)
-        pygame.draw.circle(surface, WHITE, (x + size // 2, y - size // 2), size)
+        pygame.draw.circle(surface, self.current_cloud_color, (x, y), size)
+        pygame.draw.circle(surface, self.current_cloud_color, (x + size, y), size)
+        pygame.draw.circle(surface, self.current_cloud_color, (x + size // 2, y - size // 2), size)
 
     def check_tag(self):
         """Check if players collide and handle tag switching."""
@@ -680,34 +690,36 @@ class Game:
         self.screen.blit(p1_text, (10, 50))
         self.screen.blit(p2_text, (10, 75))
         
-        # Match timer
+        # Match timer (moved slightly lower so it doesn't overlap with top dash bars)
         timer_surface = self.font_main.render(f"Time: {self.match_seconds}s", True, BLACK)
-        self.screen.blit(timer_surface, 
-                        (SCREEN_WIDTH - timer_surface.get_width() - 10, 10))
+        timer_x = SCREEN_WIDTH - timer_surface.get_width() - 10
+        # place timer beneath the top dash bars (dash bars at y=10, height=15)
+        timer_y = 10 + 15 + 8
+        self.screen.blit(timer_surface, (timer_x, timer_y))
 
     def draw_dash_cooldown(self):
-        """Draw dash cooldown bars for both players."""
-        # Player 1 Dash Cooldown Bar
+        """Draw dash cooldown bars for both players at the top of the screen."""
+        # Player 1 Dash Cooldown Bar (Top Left)
         p1_bar_width = 200
-        p1_bar_height = 20
+        p1_bar_height = 15
         p1_bar_x = 10
-        p1_bar_y = SCREEN_HEIGHT - p1_bar_height - 10
+        p1_bar_y = 10
         p1_cooldown_ratio = 1 - (self.player1.dash_cooldown / (FPS * 5))
         p1_fill_width = int(p1_bar_width * p1_cooldown_ratio)
 
-        pygame.draw.rect(self.screen, BLACK, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height))
-        pygame.draw.rect(self.screen, SHIRT_RED, (p1_bar_x, p1_bar_y, p1_fill_width, p1_bar_height))
+        pygame.draw.rect(self.screen, BLACK, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height), 2)
+        pygame.draw.rect(self.screen, self.player1.color_shirt, (p1_bar_x, p1_bar_y, p1_fill_width, p1_bar_height))
 
-        # Player 2 Dash Cooldown Bar
+        # Player 2 Dash Cooldown Bar (Top Right)
         p2_bar_width = 200
-        p2_bar_height = 20
+        p2_bar_height = 15
         p2_bar_x = SCREEN_WIDTH - p2_bar_width - 10
-        p2_bar_y = SCREEN_HEIGHT - p2_bar_height - 10
+        p2_bar_y = 10
         p2_cooldown_ratio = 1 - (self.player2.dash_cooldown / (FPS * 5))
         p2_fill_width = int(p2_bar_width * p2_cooldown_ratio)
 
-        pygame.draw.rect(self.screen, BLACK, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height))
-        pygame.draw.rect(self.screen, SHIRT_BLUE, (p2_bar_x, p2_bar_y, p2_fill_width, p2_bar_height))
+        pygame.draw.rect(self.screen, BLACK, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height), 2)
+        pygame.draw.rect(self.screen, self.player2.color_shirt, (p2_bar_x, p2_bar_y, p2_fill_width, p2_bar_height))
 
     def draw_game_over(self):
         """Draw game over screen with winner announcement."""
@@ -734,69 +746,380 @@ class Game:
                         (SCREEN_WIDTH // 2 - info2.get_width() // 2,
                          SCREEN_HEIGHT // 2 + 50))
 
+    def draw_title_screen(self):
+        """Draw the title screen."""
+        self.screen.fill(SKY_BOTTOM)
+        
+        # Main title
+        title_surface = self.font_huge.render("DANGER THINGS", True, RED)
+        self.screen.blit(title_surface,
+                         (SCREEN_WIDTH // 2 - title_surface.get_width() // 2,
+                          SCREEN_HEIGHT // 2 - 150))
+        
+        # Subtitle
+        subtitle_surface = self.font_big.render("Two Player Tag Game", True, BLACK)
+        self.screen.blit(subtitle_surface,
+                         (SCREEN_WIDTH // 2 - subtitle_surface.get_width() // 2,
+                          SCREEN_HEIGHT // 2 + 50))
+        
+        # Instructions
+        instructions_surface = self.font_main.render("Press SPACE to continue", True, BLACK)
+        self.screen.blit(instructions_surface,
+                         (SCREEN_WIDTH // 2 - instructions_surface.get_width() // 2,
+                          SCREEN_HEIGHT - 100))
+        
+        pygame.display.flip()
+    
+    def handle_title_screen_event(self, event):
+        """Handle events on the title screen."""
+        if event.type == pygame.QUIT:
+            self.running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                self.show_title_screen = False
+                self.show_color_selection_screen = True
+
     def draw_start_screen(self):
-        """Draw the start screen with map selection options."""
+        """Draw the start screen with map selection options and previews."""
         self.screen.fill(SKY_BOTTOM)
         title_surface = self.font_big.render("Two Player Tag Game", True, BLACK)
         self.screen.blit(title_surface, 
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
-                          SCREEN_HEIGHT // 2 - 150))
+                          SCREEN_HEIGHT // 2 - 280))
 
         instructions = [
             "Player 1: A/D to move, W to jump, R to dash",
             "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
-            "Press SPACE to start the game",
-            "Press 1 for Default Map",
-            "Press 6 for Floating Platforms Map",
-            "Press 2 for Narrow Platforms Map"
         ]
 
         for i, text in enumerate(instructions):
             text_surface = self.font_main.render(text, True, BLACK)
             self.screen.blit(text_surface, 
                              (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
-                              SCREEN_HEIGHT // 2 + i * 40 - 40))
+                              SCREEN_HEIGHT // 2 - 200 + i * 30))
+        
+        # Draw map previews
+        self.draw_map_preview_default(100, 300)
+        self.draw_map_preview_floating(400, 300)
+        self.draw_map_preview_narrow(700, 300)
+        
+        # Map selection labels
+        label1 = self.font_main.render("1: Default", True, BLACK)
+        self.screen.blit(label1, (100, 475))
+        
+        label2 = self.font_main.render("6: Floating", True, BLACK)
+        self.screen.blit(label2, (400, 475))
+        
+        label3 = self.font_main.render("2: Narrow", True, BLACK)
+        self.screen.blit(label3, (700, 475))
+        
+        # Start instruction
+        space_text = self.font_main.render("Press 1, 2, or 6 to select a map and start", True, BLACK)
+        self.screen.blit(space_text,
+                         (SCREEN_WIDTH // 2 - space_text.get_width() // 2,
+                          SCREEN_HEIGHT - 100))
 
         pygame.display.flip()
+    
+    def draw_map_preview_default(self, x, y):
+        """Draw a small preview of the default map."""
+        preview_width, preview_height = 250, 150
+        pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 2)
+        
+        # Draw sky gradient
+        for iy in range(preview_height):
+            ratio = iy / preview_height
+            r = int(SKY_TOP[0] + (SKY_BOTTOM[0] - SKY_TOP[0]) * ratio)
+            g = int(SKY_TOP[1] + (SKY_BOTTOM[1] - SKY_TOP[1]) * ratio)
+            b = int(SKY_TOP[2] + (SKY_BOTTOM[2] - SKY_TOP[2]) * ratio)
+            pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
+        
+        # Draw mountains at consistent positions (same across all previews)
+        # Mountain 1 (left) - upside-down darker shade
+        mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points1)
+        # Mountain 2 (center) - upside-down lighter shade
+        mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_LIGHT, mountain_points2)
+        # Mountain 3 (right) - upside-down darker shade
+        mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
+        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points3)
+        
+        # Draw connected clouds (different spot from floating platforms preview)
+        pygame.draw.circle(self.screen, WHITE, (x + 25, y + 20), 7)
+        pygame.draw.circle(self.screen, WHITE, (x + 40, y + 20), 6)
+        pygame.draw.circle(self.screen, WHITE, (x + 52, y + 22), 5)
+        pygame.draw.circle(self.screen, WHITE, (x + 205, y + 25), 7)
+        pygame.draw.circle(self.screen, WHITE, (x + 220, y + 25), 6)
+        
+        # Draw ground/base platform
+        ground_y = y + preview_height - 20
+        pygame.draw.line(self.screen, PLATFORM_BROWN, (x + 10, ground_y), (x + preview_width - 10, ground_y), 3)
+        
+        # Draw some floating platforms
+        platform_positions = [(30, 100), (100, 80), (170, 120), (210, 70)]
+        for px, py in platform_positions:
+            pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 40, 8))
+    
+    def draw_map_preview_floating(self, x, y):
+        """Draw a small preview of the floating platforms map."""
+        preview_width, preview_height = 250, 150
+        pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 2)
+        
+        # Draw with upside down colors to distinguish
+        for iy in range(preview_height):
+            ratio = iy / preview_height
+            r = int(UPSIDE_DOWN_SKY_TOP[0] + (UPSIDE_DOWN_SKY_BOTTOM[0] - UPSIDE_DOWN_SKY_TOP[0]) * ratio)
+            g = int(UPSIDE_DOWN_SKY_TOP[1] + (UPSIDE_DOWN_SKY_BOTTOM[1] - UPSIDE_DOWN_SKY_TOP[1]) * ratio)
+            b = int(UPSIDE_DOWN_SKY_TOP[2] + (UPSIDE_DOWN_SKY_BOTTOM[2] - UPSIDE_DOWN_SKY_TOP[2]) * ratio)
+            pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
+        
+        # Draw mountains at consistent positions (same as other previews)
+        # Mountain 1 (left) - darker shade
+        mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points1)
+        # Mountain 2 (center) - lighter shade
+        mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_LIGHT, mountain_points2)
+        # Mountain 3 (right) - darker shade
+        mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points3)
+        
+        # Draw connected dark grey clouds (different spot from default map preview)
+        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 35, y + 20), 6)
+        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 48, y + 20), 5)
+        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 60, y + 22), 5)
+        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 190, y + 25), 6)
+        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 205, y + 25), 5)
+        
+        # Draw floating platforms scattered
+        floating_platforms = [(20, 30), (80, 70), (160, 40), (200, 100), (70, 120), (180, 80)]
+        for px, py in floating_platforms:
+            pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 35, 6))
+    
+    def draw_map_preview_narrow(self, x, y):
+        """Draw a small preview of the narrow platforms map."""
+        preview_width, preview_height = 250, 150
+        pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 2)
+        
+        # Draw sky gradient
+        for iy in range(preview_height):
+            ratio = iy / preview_height
+            r = int(SKY_TOP[0] + (SKY_BOTTOM[0] - SKY_TOP[0]) * ratio)
+            g = int(SKY_TOP[1] + (SKY_BOTTOM[1] - SKY_TOP[1]) * ratio)
+            b = int(SKY_TOP[2] + (SKY_BOTTOM[2] - SKY_TOP[2]) * ratio)
+            pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
+        
+        # Draw mountains at consistent positions (same as other previews)
+        # Mountain 1 (left) - darker shade
+        mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points1)
+        # Mountain 2 (center) - lighter shade
+        mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_LIGHT, mountain_points2)
+        # Mountain 3 (right) - darker shade
+        mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points3)
+        
+        # Draw connected clouds (different spot from both other previews)
+        pygame.draw.circle(self.screen, WHITE, (x + 60, y + 18), 7)
+        pygame.draw.circle(self.screen, WHITE, (x + 75, y + 18), 6)
+        pygame.draw.circle(self.screen, WHITE, (x + 88, y + 20), 5)
+        pygame.draw.circle(self.screen, WHITE, (x + 165, y + 22), 7)
+        pygame.draw.circle(self.screen, WHITE, (x + 180, y + 22), 5)
+        
+        # Draw ground/base platform
+        ground_y = y + preview_height - 20
+        pygame.draw.line(self.screen, PLATFORM_BROWN, (x + 10, ground_y), (x + preview_width - 10, ground_y), 3)
+        
+        # Draw narrow platforms in a vertical pattern
+        narrow_platforms = [(50, 100), (120, 80), (190, 110), (70, 60), (150, 90), (210, 50)]
+        for px, py in narrow_platforms:
+            pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 25, 7))
 
     def draw_color_selection_screen(self):
-        """Draw the color selection screen."""
+        """Draw the color selection screen with player previews and 6 color options."""
         self.screen.fill(SKY_BOTTOM)
         title_surface = self.font_big.render("Select Player Colors", True, BLACK)
         self.screen.blit(title_surface, 
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
-                          SCREEN_HEIGHT // 2 - 150))
+                          SCREEN_HEIGHT // 2 - 250))
 
-        instructions = [
-            "Player 1: Press R for Red, B for Blue",
-            "Player 2: Press G for Green, Y for Yellow",
-            "Press SPACE to confirm selections"
+        # All available colors
+        all_colors = [
+            ("Red", RED),
+            ("Blue", BLUE),
+            ("Green", GREEN),
+            ("Yellow", YELLOW),
+            ("Purple", PURPLE),
+            ("Orange", ORANGE),
         ]
 
-        for i, text in enumerate(instructions):
-            text_surface = self.font_main.render(text, True, BLACK)
-            self.screen.blit(text_surface, 
-                             (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 
-                              SCREEN_HEIGHT // 2 + i * 40 - 40))
+        # Create a smaller font for color options
+        tiny_font = pygame.font.Font(None, 20)
+        
+        # Player 1 Section (centered on left half)
+        p1_preview_x = SCREEN_WIDTH // 4
+        p1_preview_y = 150
+        p1_label = self.font_big.render("Player 1", True, BLACK)
+        self.screen.blit(p1_label, (p1_preview_x - p1_label.get_width() // 2, 60))
+        p1_inst = tiny_font.render("(A/D to cycle)", True, (80, 80, 80))
+        self.screen.blit(p1_inst, (p1_preview_x - p1_inst.get_width() // 2, 95))
+
+        # Draw player 1 preview (slightly larger)
+        self.draw_player_preview(self.screen, p1_preview_x, p1_preview_y, self.player1.color_shirt, 2.4)
+
+        # Color options for player 1 (centered under preview)
+        for i, (name, color) in enumerate(all_colors):
+            is_selected = self.player1.color_shirt == color
+            is_taken = color == self.player2.color_shirt
+
+            if is_selected:
+                color_text = f"> {name} <"
+                text_color = color
+            elif is_taken:
+                color_text = f"{name} (X)"
+                text_color = (150, 150, 150)
+            else:
+                color_text = f"{name}"
+                text_color = BLACK
+
+            color_surface = tiny_font.render(color_text, True, text_color)
+            cx = p1_preview_x - color_surface.get_width() // 2
+            self.screen.blit(color_surface, (cx, 350 + i * 22))
+
+        # Player 2 Section (centered on right half)
+        p2_preview_x = (SCREEN_WIDTH * 3) // 4
+        p2_preview_y = 150
+        p2_label = self.font_big.render("Player 2", True, BLACK)
+        self.screen.blit(p2_label, (p2_preview_x - p2_label.get_width() // 2, 60))
+        p2_inst = tiny_font.render("(← → to cycle)", True, (80, 80, 80))
+        self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 95))
+
+        # Draw player 2 preview (slightly larger)
+        self.draw_player_preview(self.screen, p2_preview_x, p2_preview_y, self.player2.color_shirt, 2.4)
+
+        # Color options for player 2 (centered under preview)
+        for i, (name, color) in enumerate(all_colors):
+            is_selected = self.player2.color_shirt == color
+            is_taken = color == self.player1.color_shirt
+
+            if is_selected:
+                color_text = f"> {name} <"
+                text_color = color
+            elif is_taken:
+                color_text = f"{name} (X)"
+                text_color = (150, 150, 150)
+            else:
+                color_text = f"{name}"
+                text_color = BLACK
+
+            color_surface = tiny_font.render(color_text, True, text_color)
+            cx = p2_preview_x - color_surface.get_width() // 2
+            self.screen.blit(color_surface, (cx, 350 + i * 22))
+        
+        # Color options for player 2
+        for i, (name, color) in enumerate(all_colors):
+            is_selected = self.player2.color_shirt == color
+            is_taken = color == self.player1.color_shirt
+            
+            if is_selected:
+                color_text = f"> {name} <"
+                text_color = color
+            elif is_taken:
+                color_text = f"{name} (X)"
+                text_color = (150, 150, 150)
+            else:
+                color_text = f"{name}"
+                text_color = BLACK
+            
+            color_surface = tiny_font.render(color_text, True, text_color)
+            self.screen.blit(color_surface, (SCREEN_WIDTH - 250, 350 + i * 20))
+
+        # Confirmation instruction
+        space_text = self.font_main.render("Press SPACE to confirm and continue to map selection", True, BLACK)
+        self.screen.blit(space_text,
+                         (SCREEN_WIDTH // 2 - space_text.get_width() // 2,
+                          SCREEN_HEIGHT - 60))
 
         pygame.display.flip()
+    
+    def draw_player_preview(self, surface, x, y, color, zoom):
+        """Draw a simple player preview at the given position."""
+        # Body
+        body_radius = int(18 * zoom)
+        pygame.draw.circle(surface, color, (x, y), body_radius)
+        
+        # Face
+        eye_offset = int(6 * zoom)
+        eye_r = int(4 * zoom)
+        pupil_r = int(2 * zoom)
+        pygame.draw.circle(surface, WHITE, (x - eye_offset, y - int(4 * zoom)), eye_r)
+        pygame.draw.circle(surface, WHITE, (x + eye_offset, y - int(4 * zoom)), eye_r)
+        pygame.draw.circle(surface, BLACK, (x - eye_offset, y - int(4 * zoom)), pupil_r)
+        pygame.draw.circle(surface, BLACK, (x + eye_offset, y - int(4 * zoom)), pupil_r)
+        
+        # Simple smile
+        mouth_rect = pygame.Rect(x - int(6 * zoom), y + int(2 * zoom), int(12 * zoom), int(6 * zoom))
+        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, int(2 * zoom))
+        
+        # Arms
+        lx0, ly0 = x - int(18 * zoom), y + int(2 * zoom)
+        lx1, ly1 = x - int(20 * zoom), y + int(16 * zoom)
+        pygame.draw.line(surface, color, (lx0, ly0), (lx1, ly1), int(5 * zoom))
+        pygame.draw.circle(surface, color, (lx1, ly1), int(4 * zoom))
+        
+        rx0, ry0 = x + int(18 * zoom), y + int(2 * zoom)
+        rx1, ry1 = x + int(20 * zoom), y + int(16 * zoom)
+        pygame.draw.line(surface, color, (rx0, ry0), (rx1, ry1), int(5 * zoom))
+        pygame.draw.circle(surface, color, (rx1, ry1), int(4 * zoom))
+        
+        # Legs
+        leg_y = y + int(18 * zoom)
+        llx0, lly0 = x - int(6 * zoom), leg_y
+        llx1, lly1 = x - int(6 * zoom), leg_y + int(14 * zoom)
+        pygame.draw.line(surface, color, (llx0, lly0), (llx1, lly1), int(5 * zoom))
+        pygame.draw.circle(surface, color, (llx1, lly1), int(3 * zoom))
+        
+        rlx0, rly0 = x + int(6 * zoom), leg_y
+        rlx1, rly1 = x + int(6 * zoom), leg_y + int(14 * zoom)
+        pygame.draw.line(surface, color, (rlx0, rly0), (rlx1, rly1), int(5 * zoom))
+        pygame.draw.circle(surface, color, (rlx1, rly1), int(3 * zoom))
 
     def handle_color_selection_event(self, event):
         """Handle events during the color selection screen."""
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                self.player1.color_primary = RED
-                self.player1.color_shirt = RED
-            elif event.key == pygame.K_b:
-                self.player1.color_primary = BLUE
-                self.player1.color_shirt = BLUE
-            elif event.key == pygame.K_g:
-                self.player2.color_primary = (0, 255, 0)  # Green
-                self.player2.color_shirt = (0, 255, 0)
-            elif event.key == pygame.K_y:
-                self.player2.color_primary = (255, 255, 0)  # Yellow
-                self.player2.color_shirt = (255, 255, 0)
-            elif event.key == pygame.K_SPACE:
+        if event.type == pygame.QUIT:
+            self.running = False
+        elif event.type == pygame.KEYDOWN:
+            # All available colors
+            all_colors = [RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE]
+            
+            # Player 1 color cycling with A/D keys (skip any colors taken by player 2)
+            if event.key == pygame.K_a or event.key == pygame.K_d:
+                current_index = all_colors.index(self.player1.color_shirt)
+                step = -1 if event.key == pygame.K_a else 1
+                # try up to len(all_colors) steps to find a color not taken
+                for _ in range(len(all_colors)):
+                    current_index = (current_index + step) % len(all_colors)
+                    candidate = all_colors[current_index]
+                    if candidate != self.player2.color_shirt:
+                        self.player1.color_primary = candidate
+                        self.player1.color_shirt = candidate
+                        break
+            
+            # Player 2 color cycling with arrow keys (skip any colors taken by player 1)
+            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+                current_index = all_colors.index(self.player2.color_shirt)
+                step = -1 if event.key == pygame.K_LEFT else 1
+                for _ in range(len(all_colors)):
+                    current_index = (current_index + step) % len(all_colors)
+                    candidate = all_colors[current_index]
+                    if candidate != self.player1.color_shirt:
+                        self.player2.color_primary = candidate
+                        self.player2.color_shirt = candidate
+                        break
+            
+            if event.key == pygame.K_SPACE:
                 self.show_color_selection_screen = False
                 self.show_start_screen = True
 
@@ -845,6 +1168,7 @@ class Game:
                     self.current_sky_bottom = SKY_BOTTOM
                     self.current_mountain_light = MOUNTAIN_LIGHT
                     self.current_mountain_dark = MOUNTAIN_DARK
+                    self.current_cloud_color = WHITE
                     self.background_surface = self.create_background()
                     
                     self.platforms = self.generate_platforms()
@@ -859,6 +1183,7 @@ class Game:
                     self.current_sky_bottom = SKY_BOTTOM
                     self.current_mountain_light = MOUNTAIN_LIGHT
                     self.current_mountain_dark = MOUNTAIN_DARK
+                    self.current_cloud_color = WHITE
                     self.background_surface = self.create_background()
                     
                     self.platforms = self.generate_narrow_platforms()
@@ -904,6 +1229,7 @@ class Game:
         self.current_sky_bottom = SKY_BOTTOM
         self.current_mountain_light = MOUNTAIN_LIGHT
         self.current_mountain_dark = MOUNTAIN_DARK
+        self.current_cloud_color = WHITE
         
         # Regenerate platforms for variety
         self.platforms = self.generate_platforms()
@@ -993,6 +1319,7 @@ class Game:
         self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
         self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
         self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
+        self.current_cloud_color = GREY_CLOUD
         
         # Regenerate background with new colors
         self.background_surface = self.create_background()
@@ -1012,15 +1339,18 @@ class Game:
 
     def run(self):
         """Main game loop."""
-        self.show_color_selection_screen = True  # Add flag for color selection screen
         while self.running:
             for event in pygame.event.get():
-                if self.show_color_selection_screen:
+                if self.show_title_screen:
+                    self.handle_title_screen_event(event)
+                elif self.show_color_selection_screen:
                     self.handle_color_selection_event(event)
                 else:
                     self.handle_event(event)
 
-            if self.show_color_selection_screen:
+            if self.show_title_screen:
+                self.draw_title_screen()
+            elif self.show_color_selection_screen:
                 self.draw_color_selection_screen()
             elif self.show_start_screen:
                 self.draw_start_screen()
