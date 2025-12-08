@@ -749,10 +749,10 @@ class Game:
 
     def draw_title_screen(self):
         """Draw the title screen."""
-        self.screen.fill(SKY_BOTTOM)
+        self.screen.fill(UPSIDE_DOWN_SKY_BOTTOM)
         
         # Main title
-        title_surface = self.font_huge.render("DANGER THINGS", True, RED)
+        title_surface = self.font_huge.render("DANGER THINGS", True, BLACK)
         self.screen.blit(title_surface,
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2,
                           SCREEN_HEIGHT // 2 - 150))
@@ -766,8 +766,7 @@ class Game:
         # Instructions
         instructions_surface = self.font_main.render("Press SPACE to continue", True, BLACK)
         self.screen.blit(instructions_surface,
-                         (SCREEN_WIDTH // 2 - instructions_surface.get_width() // 2,
-                          SCREEN_HEIGHT - 100))
+                         (SCREEN_WIDTH // 2 - instructions_surface.get_width() // 2,SCREEN_HEIGHT - 100))
         
         pygame.display.flip()
     
@@ -782,7 +781,7 @@ class Game:
 
     def draw_start_screen(self):
         """Draw the start screen with map selection options and previews."""
-        self.screen.fill(SKY_BOTTOM)
+        self.screen.fill(UPSIDE_DOWN_SKY_BOTTOM)
         title_surface = self.font_big.render("Two Player Tag Game", True, BLACK)
         self.screen.blit(title_surface, 
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
@@ -940,7 +939,7 @@ class Game:
 
     def draw_color_selection_screen(self):
         """Draw the color selection screen with player previews and 6 color options."""
-        self.screen.fill(SKY_BOTTOM)
+        self.screen.fill(UPSIDE_DOWN_SKY_BOTTOM)
         title_surface = self.font_big.render("Select Player Colors", True, BLACK)
         self.screen.blit(title_surface, 
                          (SCREEN_WIDTH // 2 - title_surface.get_width() // 2, 
@@ -964,7 +963,7 @@ class Game:
         p1_preview_y = 200
         p1_label = self.font_big.render("Player 1", True, BLACK)
         self.screen.blit(p1_label, (p1_preview_x - p1_label.get_width() // 2, 60))
-        p1_inst = tiny_font.render("(A/D to cycle)", True, (80, 80, 80))
+        p1_inst = tiny_font.render("(A/D to cycle)", True, BLACK)
         self.screen.blit(p1_inst, (p1_preview_x - p1_inst.get_width() // 2, 120))
 
         # Draw player 1 preview (slightly larger)
@@ -994,7 +993,7 @@ class Game:
         p2_preview_y = 200
         p2_label = self.font_big.render("Player 2", True, BLACK)
         self.screen.blit(p2_label, (p2_preview_x - p2_label.get_width() // 2, 60))
-        p2_inst = tiny_font.render("(LEFT / RIGHT to cycle)", True, (80, 80, 80))
+        p2_inst = tiny_font.render("(LEFT / RIGHT to cycle)", True, BLACK)
         self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 120))
 
         # Draw player 2 preview (slightly larger)
