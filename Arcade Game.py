@@ -175,20 +175,29 @@ class Player:
 
                 player_rect.update(self.x, self.y, self.width, self.height)
 
-        # Animation state (rest of the method stays the same)
-        if abs(self.vx) > RUN_THRESHOLD:
-            self.current_animation = "running"
-            self.run_cycle += abs(self.vx) * 0.08
-            if self.run_cycle > 4:
-                self.run_cycle -= 4
-        elif self.on_ground:
+        # Animation state
+        grounded_still = self.on_ground and abs(self.vx) < 0.25 and abs(self.vy) < 0.2 and self.dash_timer == 0
+        if grounded_still:
             self.current_animation = "idle"
             self.run_cycle = 0
             self.idle_phase += 0.04
             if self.idle_phase > math.tau:
                 self.idle_phase -= math.tau
-        elif not self.on_ground:
-            self.current_animation = "jumping"
+        elif self.on_ground:
+            self.current_animation = "running"
+            self.idle_phase = 0
+            self.run_cycle += abs(self.vx) * 0.08
+            if self.run_cycle > 4:
+                self.run_cycle -= 4
+        else:
+            # in air: show running if moving sideways, else jumping
+            if abs(self.vx) > RUN_THRESHOLD:
+                self.current_animation = "running"
+                self.run_cycle += abs(self.vx) * 0.08
+                if self.run_cycle > 4:
+                    self.run_cycle -= 4
+            else:
+                self.current_animation = "jumping"
         
         if self.is_tagged:
             self.glow_intensity = min(self.glow_intensity + 0.15, 1.0)
@@ -1232,75 +1241,45 @@ class Game:
         # Reset camera
         self.camera = Camera(self.ground_top)
 
+    def _is_too_close(self, platforms, candidate, pad_x, pad_y):
+        """Reject platform placement when padded candidate bounds collide with any existing platform."""
+        padded = candidate.rect.inflate(pad_x * 2, pad_y * 2)
+        for existing in platforms:
+            if padded.colliderect(existing.rect):
+                return True
+        return False
+
     def generate_platforms(self):
-        """Generate platforms for the level."""
+        """Generate the default map with evenly spaced common platforms (no overlaps)."""
         platforms = []
-        
-        # Ground platform
         platforms.append(Platform(0, MAP_HEIGHT - GROUND_HEIGHT, MAP_WIDTH, GROUND_HEIGHT))
 
-        segments = 12
-        tiers = 3
-        for i in range(segments):
-            seg_w = MAP_WIDTH / segments
-            x_min = int(i * seg_w) + 40
-            x_max = int((i + 1) * seg_w) - 40
-            width = random.randint(140, 360)
-            x = random.randint(x_min, max(x_min, x_max - width))
-
-            # Base height curve
-            t = i / max(1, (segments - 1))
-            base_y = MAP_HEIGHT - 220 - int(math.sin(t * math.pi) * (MAP_HEIGHT * 0.18))
-            y = base_y + random.randint(-140, 140)
-            y = max(60, min(y, MAP_HEIGHT - GROUND_HEIGHT - 60))
-
-            # Main platform
-            platforms.append(Platform(x, y, width, 40))
-
-            # Tiered platforms
-            for tier in range(1, tiers + 1):
-                if random.random() < 0.72:
-                    tw = random.randint(100, 220)
-                    tx = x + random.randint(-260, 260)
-                    tx = max(20, min(MAP_WIDTH - tw - 20, tx))
-                    tier_frac = tier / (tiers + 1)
-                    ty_base = base_y - int(tier_frac * (220 + MAP_HEIGHT * 0.06)) - int(math.cos(t * math.pi) * 80)
-                    ty = ty_base + random.randint(-150, 150)
-                    ty = max(60, min(ty, MAP_HEIGHT - GROUND_HEIGHT - 80))
-                    newp = Platform(tx, ty, tw, 36)
-                    
-                    # Overlap correction
-                    for existing in platforms:
-                        vert_gap = abs(existing.rect.y - newp.rect.y)
-                        if vert_gap < 180:
-                            hor_overlap = max(0, min(existing.rect.right, newp.rect.right) - max(existing.rect.left, newp.rect.left))
-                            minw = min(existing.rect.width, newp.rect.width)
-                            if hor_overlap > 0.65 * minw:
-                                shift = int((hor_overlap - 0.55 * minw) + 60)
-                                if newp.rect.centerx < existing.rect.centerx:
-                                    newp.rect.x = max(20, newp.rect.x - shift)
-                                else:
-                                    newp.rect.x = min(MAP_WIDTH - newp.rect.width - 20, newp.rect.x + shift)
-                    platforms.append(newp)
-
-        # Floating platforms
-        for _ in range(16):
-            fw = random.randint(80, 220)
-            fx = random.randint(60, MAP_WIDTH - fw - 60)
-            fy = random.randint(100, MAP_HEIGHT - 420)
-            fp = Platform(fx, fy, fw, 36)
-            platforms.append(fp)
+        attempts = 0
+        target = 26
+        while len(platforms) - 1 < target and attempts < target * 30:
+            attempts += 1
+            w = random.randint(150, 320)
+            x = random.randint(60, MAP_WIDTH - w - 60)
+            y = random.randint(140, MAP_HEIGHT - GROUND_HEIGHT - 260)
+            candidate = Platform(x, y, w, 44)
+            if not self._is_too_close(platforms, candidate, 50, 120):
+                platforms.append(candidate)
         return platforms
 
     def generate_floating_platforms(self):
-        """Generate a map with mostly floating platforms."""
+        """Generate a map with mostly floating platforms (no overlaps)."""
         platforms = []
         platforms.append(Platform(0, MAP_HEIGHT - GROUND_HEIGHT, MAP_WIDTH, GROUND_HEIGHT))
-        for _ in range(20):
-            fw = random.randint(100, 300)
-            fx = random.randint(50, MAP_WIDTH - fw - 50)
-            fy = random.randint(100, MAP_HEIGHT - 300)
-            platforms.append(Platform(fx, fy, fw, 40))
+        attempts = 0
+        target = 20
+        while len(platforms) - 1 < target and attempts < target * 25:
+            attempts += 1
+            fw = random.randint(120, 280)
+            fx = random.randint(70, MAP_WIDTH - fw - 70)
+            fy = random.randint(120, MAP_HEIGHT - 340)
+            candidate = Platform(fx, fy, fw, 40)
+            if not self._is_too_close(platforms, candidate, 60, 140):
+                platforms.append(candidate)
         
         # Set low gravity for this map
         global GRAVITY
@@ -1319,14 +1298,19 @@ class Game:
         return platforms
 
     def generate_narrow_platforms(self):
-        """Generate a map with narrow and challenging platforms."""
+        """Generate a map with narrow and challenging platforms (no overlaps)."""
         platforms = []
         platforms.append(Platform(0, MAP_HEIGHT - GROUND_HEIGHT, MAP_WIDTH, GROUND_HEIGHT))
-        for _ in range(15):
-            nw = random.randint(80, 150)
-            nx = random.randint(50, MAP_WIDTH - nw - 50)
-            ny = random.randint(100, MAP_HEIGHT - 300)
-            platforms.append(Platform(nx, ny, nw, 30))
+        attempts = 0
+        target = 15
+        while len(platforms) - 1 < target and attempts < target * 25:
+            attempts += 1
+            nw = random.randint(90, 160)
+            nx = random.randint(60, MAP_WIDTH - nw - 60)
+            ny = random.randint(120, MAP_HEIGHT - 340)
+            candidate = Platform(nx, ny, nw, 30)
+            if not self._is_too_close(platforms, candidate, 50, 120):
+                platforms.append(candidate)
         return platforms
 
     def run(self):
