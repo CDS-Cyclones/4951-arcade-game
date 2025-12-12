@@ -174,26 +174,6 @@ class Player:
                         self.vx = 0
 
                 player_rect.update(self.x, self.y, self.width, self.height)
-
-        # Animation state
-        if self.on_ground:
-            # On ground: idle when truly still, running when moving
-            if abs(self.vx) < 0.3 and self.dash_timer == 0:
-                self.current_animation = "idle"
-                self.run_cycle = 0
-                self.idle_phase += 0.04
-                if self.idle_phase > math.tau:
-                    self.idle_phase -= math.tau
-            else:
-                self.current_animation = "running"
-                self.idle_phase = 0
-                self.run_cycle += abs(self.vx) * 0.08
-                if self.run_cycle > 4:
-                    self.run_cycle -= 4
-        else:
-            # In air: always show jumping animation
-            self.current_animation = "jumping"
-            self.run_cycle = 0
         
         if self.is_tagged:
             self.glow_intensity = min(self.glow_intensity + 0.15, 1.0)
@@ -211,8 +191,36 @@ class Player:
         elif self.dash_cooldown > 0:
             self.dash_cooldown -= 1
 
+        # Apply friction to stop small movements
         if self.on_ground and abs(self.vx) < 0.08 and self.dash_timer == 0:
             self.vx = 0
+        
+        # Animation state - set AFTER friction is applied
+        # Only change animation if on_ground AND vy is near zero (stable on platform)
+        if self.on_ground and abs(self.vy) <= 0.5:
+            # On ground and stable: idle when still, running when moving
+            if abs(self.vx) == 0 and self.dash_timer == 0:
+                self.current_animation = "idle"
+                self.run_cycle = 0
+                self.idle_phase += 0.04
+                if self.idle_phase > math.tau:
+                    self.idle_phase -= math.tau
+            else:
+                self.current_animation = "running"
+                self.idle_phase = 0
+                self.run_cycle += abs(self.vx) * 0.08
+                if self.run_cycle > 4:
+                    self.run_cycle -= 4
+        else:
+            # In air or unstable: jumping when not moving horizontally much, running when moving sideways
+            if abs(self.vx) > 2.0:
+                self.current_animation = "running"
+                self.run_cycle += abs(self.vx) * 0.08
+                if self.run_cycle > 4:
+                    self.run_cycle -= 4
+            else:
+                self.current_animation = "jumping"
+                self.run_cycle = 0
 
     def dash(self):
         if self.dash_cooldown == 0 and self.dash_timer == 0:
