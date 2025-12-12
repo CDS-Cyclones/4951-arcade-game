@@ -135,7 +135,7 @@ class Player:
             self.vx = 0
 
         # Reset ground state before checking
-        #self.on_ground = False
+        self.on_ground = False
 
         # Check world floor
         if self.y + self.height >= MAP_HEIGHT:
@@ -176,28 +176,24 @@ class Player:
                 player_rect.update(self.x, self.y, self.width, self.height)
 
         # Animation state
-        grounded_still = self.on_ground and abs(self.vx) < 0.25 and abs(self.vy) < 0.2 and self.dash_timer == 0
-        if grounded_still:
-            self.current_animation = "idle"
-            self.run_cycle = 0
-            self.idle_phase += 0.04
-            if self.idle_phase > math.tau:
-                self.idle_phase -= math.tau
-        elif self.on_ground:
-            self.current_animation = "running"
-            self.idle_phase = 0
-            self.run_cycle += abs(self.vx) * 0.08
-            if self.run_cycle > 4:
-                self.run_cycle -= 4
-        else:
-            # in air: show running if moving sideways, else jumping
-            if abs(self.vx) > RUN_THRESHOLD:
+        if self.on_ground:
+            # On ground: idle when truly still, running when moving
+            if abs(self.vx) < 0.3 and self.dash_timer == 0:
+                self.current_animation = "idle"
+                self.run_cycle = 0
+                self.idle_phase += 0.04
+                if self.idle_phase > math.tau:
+                    self.idle_phase -= math.tau
+            else:
                 self.current_animation = "running"
+                self.idle_phase = 0
                 self.run_cycle += abs(self.vx) * 0.08
                 if self.run_cycle > 4:
                     self.run_cycle -= 4
-            else:
-                self.current_animation = "jumping"
+        else:
+            # In air: always show jumping animation
+            self.current_animation = "jumping"
+            self.run_cycle = 0
         
         if self.is_tagged:
             self.glow_intensity = min(self.glow_intensity + 0.15, 1.0)
@@ -972,7 +968,7 @@ class Game:
         p1_preview_y = 200
         p1_label = self.font_big.render("Player 1", True, BLACK)
         self.screen.blit(p1_label, (p1_preview_x - p1_label.get_width() // 2, 60))
-        p1_inst = tiny_font.render("(A/D to cycle)", True, BLACK)
+        p1_inst = tiny_font.render("(Use joystick to cycle)", True, BLACK)
         self.screen.blit(p1_inst, (p1_preview_x - p1_inst.get_width() // 2, 120))
 
         # Draw player 1 preview (slightly larger)
@@ -1002,7 +998,7 @@ class Game:
         p2_preview_y = 200
         p2_label = self.font_big.render("Player 2", True, BLACK)
         self.screen.blit(p2_label, (p2_preview_x - p2_label.get_width() // 2, 60))
-        p2_inst = tiny_font.render("(LEFT / RIGHT to cycle)", True, BLACK)
+        p2_inst = tiny_font.render("(Use joystick to cycle)", True, BLACK)
         self.screen.blit(p2_inst, (p2_preview_x - p2_inst.get_width() // 2, 120))
 
         # Draw player 2 preview (slightly larger)
@@ -1086,10 +1082,10 @@ class Game:
             # All available colors
             all_colors = [RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE]
             
-            # Player 1 color cycling with A/D keys (skip any colors taken by player 2)
-            if event.key == pygame.K_a or event.key == pygame.K_d:
+            # Player 1 color cycling with Q/S, A/D keys (skip any colors taken by player 2)
+            if event.key == pygame.K_q or event.key == pygame.K_s or event.key == pygame.K_a or event.key == pygame.K_d:
                 current_index = all_colors.index(self.player1.color_shirt)
-                step = -1 if event.key == pygame.K_a else 1
+                step = -1 if (event.key == pygame.K_q or event.key == pygame.K_a) else 1
                 # try up to len(all_colors) steps to find a color not taken
                 for _ in range(len(all_colors)):
                     current_index = (current_index + step) % len(all_colors)
@@ -1099,10 +1095,10 @@ class Game:
                         self.player1.color_shirt = candidate
                         break
             
-            # Player 2 color cycling with arrow keys (skip any colors taken by player 1)
-            if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+            # Player 2 color cycling with P/DOWN, LEFT/RIGHT keys (skip any colors taken by player 1)
+            if event.key == pygame.K_p or event.key == pygame.K_DOWN or event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
                 current_index = all_colors.index(self.player2.color_shirt)
-                step = -1 if event.key == pygame.K_LEFT else 1
+                step = -1 if (event.key == pygame.K_p or event.key == pygame.K_LEFT) else 1
                 for _ in range(len(all_colors)):
                     current_index = (current_index + step) % len(all_colors)
                     candidate = all_colors[current_index]
