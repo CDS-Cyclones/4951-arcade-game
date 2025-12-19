@@ -84,6 +84,38 @@ class Platform:
                         (draw_rect.left, draw_rect.top),
                         (draw_rect.right, draw_rect.top), max(1, int(4 * zoom)))
 
+class Portal:
+    """A bright red portal that switches the world to upside-down colors."""
+    def __init__(self, x, y, width, height):
+        self.rect = pygame.Rect(x, y, width, height)
+
+    def draw(self, surface, zoom, cam_x, cam_y):
+        # Transform to screen space
+        sx = int(self.rect.x * zoom - cam_x)
+        sy = int(self.rect.y * zoom - cam_y)
+        sw = max(1, int(self.rect.width * zoom))
+        sh = max(1, int(self.rect.height * zoom))
+        draw_rect = pygame.Rect(sx, sy, sw, sh)
+
+        # Frustum culling
+        if (draw_rect.right < 0 or draw_rect.left > SCREEN_WIDTH or
+            draw_rect.bottom < 0 or draw_rect.top > SCREEN_HEIGHT):
+            return
+
+        # Pulsating glow effect
+        t = pygame.time.get_ticks() * 0.005
+        glow_phase = (math.sin(t) + 1) * 0.5  # 0..1
+        base_color = (255, 40, 40)
+        glow_color = (255, 90 + int(100 * glow_phase), 90 + int(80 * glow_phase))
+
+        # Fill and outline
+        pygame.draw.rect(surface, base_color, draw_rect)
+        pygame.draw.rect(surface, glow_color, draw_rect, max(2, int(4 * zoom)))
+        # Inner outline for depth
+        inner = draw_rect.inflate(-max(3, int(6 * zoom)), -max(3, int(6 * zoom)))
+        if inner.width > 0 and inner.height > 0:
+            pygame.draw.rect(surface, glow_color, inner, max(1, int(3 * zoom)))
+
 class Player:
     def __init__(self, x, y, player_id, color_primary, color_shirt):
         self.x = x
@@ -527,6 +559,9 @@ class Game:
         
         # Pre-render background for performance
         self.background_surface = self.create_background()
+
+        # Theme state
+        self.is_upside_down = False
         
         # Initialize players at spawn positions
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
@@ -535,6 +570,11 @@ class Game:
         
         # Initialize camera with new simplified class
         self.camera = Camera(self.ground_top)
+
+        # Portal spawns on a platform and toggles world colors
+        self.portal = None
+        self.portal_cooldown = 0
+        self._spawn_portal_on_random_platform(40, 80)
         
         # Game state
         self.player1.is_tagged = True
@@ -663,6 +703,23 @@ class Game:
 
         # Update camera
         self.camera.update(self.player1, self.player2)
+
+        # Portal collision: toggle colors and move portal to a new platform
+        if self.portal_cooldown > 0:
+            self.portal_cooldown -= 1
+        if self.portal and self.portal_cooldown == 0:
+            if (self.player1.get_bounds().colliderect(self.portal.rect) or
+                self.player2.get_bounds().colliderect(self.portal.rect)):
+                if not self.is_upside_down:
+                    self._apply_upside_down_colors()
+                    self.is_upside_down = True
+                else:
+                    self._apply_light_colors()
+                    self.is_upside_down = False
+                # Move portal and set short cooldown to avoid retriggering
+                w, h = self.portal.rect.size
+                self._spawn_portal_on_random_platform(w, h)
+                self.portal_cooldown = max(20, FPS // 2)
 
         # Update game timer
         if self.state == GameState.PLAYING:
@@ -1135,6 +1192,10 @@ class Game:
         # Draw world objects
         for platform in self.platforms:
             platform.draw(self.screen, zoom, cam_x, cam_y)
+
+        # Draw portal on top of platforms but behind players
+        if self.portal:
+            self.portal.draw(self.screen, zoom, cam_x, cam_y)
         
         self.player1.draw(self.screen, zoom, cam_x, cam_y)
         self.player2.draw(self.screen, zoom, cam_x, cam_y)
@@ -1155,15 +1216,21 @@ class Game:
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
                 if event.key == pygame.K_1:
+                    # Default map: light colors + normal gravity
                     self._reset_to_default_theme()
+                    self._set_normal_gravity()
                     self.platforms = self.generate_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_6:
-                    self._set_floating_theme()
+                    # Floating map gameplay: light colors + low gravity
+                    self._reset_to_default_theme()
+                    self._set_low_gravity()
                     self.platforms = self.generate_floating_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_2:
+                    # Narrow map: light colors + normal gravity
                     self._reset_to_default_theme()
+                    self._set_normal_gravity()
                     self.platforms = self.generate_narrow_platforms()
                     self.show_start_screen = False
             else:
@@ -1194,6 +1261,7 @@ class Game:
         self.current_mountain_dark = MOUNTAIN_DARK
         self.current_cloud_color = WHITE
         self.background_surface = self.create_background()
+        self.is_upside_down = False
     
     def _set_floating_theme(self):
         """Set theme for floating platforms map with upside-down colors."""
@@ -1205,6 +1273,58 @@ class Game:
         self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
         self.current_cloud_color = GREY_CLOUD
         self.background_surface = self.create_background()
+
+    def _apply_upside_down_colors(self):
+        """Apply upside-down color palette without changing gravity."""
+        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
+        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
+        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
+        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
+        self.current_cloud_color = GREY_CLOUD
+        self.background_surface = self.create_background()
+
+    def _apply_light_colors(self):
+        """Apply light color palette without changing gravity."""
+        self.current_sky_top = SKY_TOP
+        self.current_sky_bottom = SKY_BOTTOM
+        self.current_mountain_light = MOUNTAIN_LIGHT
+        self.current_mountain_dark = MOUNTAIN_DARK
+        self.current_cloud_color = WHITE
+        self.background_surface = self.create_background()
+
+    def _spawn_portal_on_random_platform(self, portal_w=40, portal_h=80):
+        """Place the portal so it sits on top of a random non-ground platform.
+        Falls back to center above ground if no platforms available.
+        """
+        if not self.platforms:
+            # Create a default portal if platforms aren't generated yet
+            x = MAP_WIDTH // 2 - portal_w // 2
+            y = self.ground_top - portal_h - 10
+            self.portal = Portal(x, y, portal_w, portal_h)
+            return
+
+        # Exclude ground platform (assumed first in list)
+        candidates = self.platforms[1:] if len(self.platforms) > 1 else []
+        platform = random.choice(candidates) if candidates else self.platforms[0]
+
+        x_min = platform.rect.left
+        x_max = max(x_min, platform.rect.right - portal_w)
+        x = random.randint(x_min, x_max) if x_max > x_min else x_min + (platform.rect.width - portal_w) // 2
+        y = platform.rect.top - portal_h
+        y = max(0, y)
+
+        if self.portal is None:
+            self.portal = Portal(x, y, portal_w, portal_h)
+        else:
+            self.portal.rect.update(x, y, portal_w, portal_h)
+
+    def _set_normal_gravity(self):
+        global GRAVITY
+        GRAVITY = 0.5
+
+    def _set_low_gravity(self):
+        global GRAVITY
+        GRAVITY = 0.2
 
     def reset(self):
         """Reset game state for a new match."""
@@ -1224,12 +1344,17 @@ class Game:
         
         # Reset to default theme
         self._reset_to_default_theme()
+        self._set_normal_gravity()
         
         # Regenerate platforms for variety
         self.platforms = self.generate_platforms()
         
         # Reset camera
         self.camera = Camera(self.ground_top)
+
+        # Recreate portal on a random platform
+        self.portal_cooldown = 0
+        self._spawn_portal_on_random_platform(40, 80)
 
     def go_to_title_screen(self):
         """Reset gameplay state, then show the DANGER THINGS title screen."""
