@@ -9,7 +9,7 @@ SCREEN_WIDTH = 1025
 SCREEN_HEIGHT = 710
 FPS = 60
 GRAVITY = 0.5
-MAP_WIDTH = 2400
+MAP_WIDTH = 2000
 MAP_HEIGHT = 1600
 # Movement
 RUN_THRESHOLD = 1.2
@@ -57,6 +57,8 @@ UPSIDE_DOWN_MOUNTAIN_DARK = (20, 10, 20)
 UPSIDE_DOWN_MOUNTAIN_LIGHT = (45, 30, 45)
 PLATFORM_BROWN = (139, 89, 19)
 PLATFORM_DARK = (101, 60, 14)
+UI_LIGHT = (230, 230, 230)
+PLATFORM_Y_OFFSET = 80
 
 class PlayerState(Enum):
     NORMAL = 1
@@ -469,7 +471,7 @@ class Camera:
         bottom = max(player1.y + player1.height, player2.y + player2.height)
         
         # 2. Add comfortable margins around players
-        margin_x = 220
+        margin_x = 160
         margin_y = 140
         
         required_width = (right - left) + margin_x
@@ -486,21 +488,25 @@ class Camera:
         # Use the smaller zoom to ensure everything fits
         self.target_zoom = min(zoom_x, zoom_y)
         
-        # Clamp zoom to reasonable limits
-        self.target_zoom = max(ZOOM_MIN, min(self.target_zoom, ZOOM_MAX))
+        # Clamp zoom to reasonable limits and never show outside world bounds
+        min_zoom_world = max(
+            ZOOM_MIN,
+            SCREEN_WIDTH / MAP_WIDTH,
+            SCREEN_HEIGHT / max(self.ground_top, 1),
+        )
+        self.target_zoom = max(min_zoom_world, min(self.target_zoom, ZOOM_MAX))
         
         # 4. Calculate center point between players
         center_x = (left + right) / 2
         center_y = (top + bottom) / 2
         
-        # 5. Apply vertical constraints to keep ground visible
+        # 5. Apply vertical constraints to keep ground visible but allow a lower view
         half_view_height = (SCREEN_HEIGHT / self.target_zoom) / 2
-        
-        # Adjust the camera to show a bit more ground
-        ground_offset = 50  # Pixels to lower the camera view
-        dash_bar_height = 40  # Additional offset to ensure dash bars don't cover the ground
-        if center_y + half_view_height > self.ground_top + ground_offset + dash_bar_height:
-            center_y = self.ground_top - half_view_height + ground_offset + dash_bar_height
+
+        # Allow the camera bottom to sit lower so part of the ground platform stays visible
+        visible_ground = GROUND_HEIGHT + 60  # ensure full ground is visible even at wide zooms
+        if center_y + half_view_height > self.ground_top + visible_ground:
+            center_y = self.ground_top - half_view_height + visible_ground
         
         # Don't let camera go above world top
         if center_y - half_view_height < 0:
@@ -510,6 +516,8 @@ class Camera:
         # Camera position is top-left corner in world space
         self.target_x = center_x * self.target_zoom - SCREEN_WIDTH / 2
         self.target_y = center_y * self.target_zoom - SCREEN_HEIGHT / 2
+        # Shift camera view downward to reveal more ground
+        self.target_y += 24
         
         # 7. Clamp camera to world boundaries
         max_cam_x = max(0, MAP_WIDTH * self.target_zoom - SCREEN_WIDTH)
@@ -575,11 +583,14 @@ class Game:
         self.transition_duration = 0.0
         self.transition_from = None
         self.transition_to = None
+        self.ui_t = 0.0
+        self.ui_from = 0.0
+        self.ui_to = 0.0
         
         # Initialize players at spawn positions
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
         self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
-        self.player2 = Player(2100, ground_spawn_y, 2, BLUE, BLUE)
+        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, BLUE, BLUE)
         
         # Initialize camera with new simplified class
         self.camera = Camera(self.ground_top)
@@ -616,6 +627,12 @@ class Game:
         self.show_title_screen = True
         self.show_color_selection_screen = False
         self.show_start_screen = False
+
+    def _ui_color(self):
+        """Return a blended UI color based on transition progress (fades black->light)."""
+        def lerp_color(c1, c2, t):
+            return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+        return lerp_color(BLACK, UI_LIGHT, max(0.0, min(1.0, self.ui_t)))
 
     def create_background(self):
         """
@@ -735,9 +752,11 @@ class Game:
             self.current_mountain_light = lerp(f_light, t_light)
             self.current_mountain_dark = lerp(f_dark, t_dark)
             self.current_cloud_color = lerp(f_cloud, t_cloud)
+            self.ui_t = self.ui_from + (self.ui_to - self.ui_from) * t
             self.background_surface = self.create_background()
             if t >= 1.0:
                 self.transition_active = False
+                self.ui_t = self.ui_to
 
         # First-frame fix to move initial portal onto a platform
         if self.portal_needs_platform_fix and self.portal_spawn_delay == 0:
@@ -811,13 +830,14 @@ class Game:
                         (SCREEN_WIDTH // 2 - text_surface.get_width() // 2, 10 + 15 + 4))
         
         # Controls guide
-        p1_text = self.font_small.render("P1: A / D move, W jump, R dash", True, BLACK)
-        p2_text = self.font_small.render("P2: LEFT / RIGHT move, UP jump, U dash", True, BLACK)
+        ui_color = self._ui_color()
+        p1_text = self.font_small.render("P1: A / D move, W jump, R dash", True, ui_color)
+        p2_text = self.font_small.render("P2: LEFT / RIGHT move, UP jump, U dash", True, ui_color)
         self.screen.blit(p1_text, (10, 50))
         self.screen.blit(p2_text, (10, 75))
         
         # Match timer (moved slightly lower so it doesn't overlap with top dash bars)
-        timer_surface = self.font_main.render(f"Time: {self.match_seconds}s", True, BLACK)
+        timer_surface = self.font_main.render(f"Time: {self.match_seconds}s", True, ui_color)
         timer_x = SCREEN_WIDTH - timer_surface.get_width() - 10
         # place timer beneath the top dash bars (dash bars at y=10, height=15)
         timer_y = 10 + 15 + 8
@@ -825,6 +845,7 @@ class Game:
 
     def draw_dash_cooldown(self):
         """Draw dash cooldown bars for both players at the top of the screen."""
+        ui_color = self._ui_color()
         # Player 1 Dash Cooldown Bar (Top Left)
         p1_bar_width = 200
         p1_bar_height = 15
@@ -833,7 +854,7 @@ class Game:
         p1_cooldown_ratio = 1 - (self.player1.dash_cooldown / (FPS * 5))
         p1_fill_width = int(p1_bar_width * p1_cooldown_ratio)
 
-        pygame.draw.rect(self.screen, BLACK, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height), 2)
+        pygame.draw.rect(self.screen, ui_color, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height), 2)
         pygame.draw.rect(self.screen, self.player1.color_shirt, (p1_bar_x, p1_bar_y, p1_fill_width, p1_bar_height))
 
         # Player 2 Dash Cooldown Bar (Top Right)
@@ -844,7 +865,7 @@ class Game:
         p2_cooldown_ratio = 1 - (self.player2.dash_cooldown / (FPS * 5))
         p2_fill_width = int(p2_bar_width * p2_cooldown_ratio)
 
-        pygame.draw.rect(self.screen, BLACK, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height), 2)
+        pygame.draw.rect(self.screen, ui_color, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height), 2)
         pygame.draw.rect(self.screen, self.player2.color_shirt, (p2_bar_x, p2_bar_y, p2_fill_width, p2_bar_height))
 
     def draw_game_over(self):
@@ -1334,7 +1355,7 @@ class Game:
         self.current_cloud_color = GREY_CLOUD
         self.background_surface = self.create_background()
 
-    def _start_color_transition(self, target_palette, duration=0.6):
+    def _start_color_transition(self, target_palette, target_ui_t, duration=0.6):
         """Begin a smooth transition to the target palette over duration seconds."""
         self.transition_active = True
         self.transition_elapsed = 0.0
@@ -1347,6 +1368,8 @@ class Game:
             self.current_cloud_color,
         )
         self.transition_to = target_palette
+        self.ui_from = self.ui_t
+        self.ui_to = target_ui_t
 
     def _apply_upside_down_colors(self):
         """Apply upside-down color palette without changing gravity (instant)."""
@@ -1374,7 +1397,7 @@ class Game:
             UPSIDE_DOWN_MOUNTAIN_DARK,
             GREY_CLOUD,
         )
-        self._start_color_transition(target)
+        self._start_color_transition(target, 1.0)
 
     def _start_transition_to_light(self):
         target = (
@@ -1384,7 +1407,7 @@ class Game:
             MOUNTAIN_DARK,
             WHITE,
         )
-        self._start_color_transition(target)
+        self._start_color_transition(target, 0.0)
 
     def _spawn_portal_on_random_platform(self, portal_w=40, portal_h=80, force_ground_fallback=False):
         """Place the portal on top of a random non-ground platform.
@@ -1437,7 +1460,7 @@ class Game:
         """Reset game state for a new match."""
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
         self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
-        self.player2 = Player(2100, ground_spawn_y, 2, BLUE, BLUE)
+        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, BLUE, BLUE)
         
         self.player1.is_tagged = True
         self.player2.is_tagged = False
@@ -1491,8 +1514,8 @@ class Game:
         while len(platforms) - 1 < target and attempts < target * 30:
             attempts += 1
             w = random.randint(150, 320)
-            x = random.randint(60, MAP_WIDTH - w - 60)
-            y = random.randint(140, MAP_HEIGHT - GROUND_HEIGHT - 260)
+            x = random.randint(10, MAP_WIDTH - w - 10)
+            y = random.randint(140 + PLATFORM_Y_OFFSET, MAP_HEIGHT - GROUND_HEIGHT - 260 + PLATFORM_Y_OFFSET)
             candidate = Platform(x, y, w, 44)
             if not self._is_too_close(platforms, candidate, 50, 120):
                 platforms.append(candidate)
@@ -1507,8 +1530,8 @@ class Game:
         while len(platforms) - 1 < target and attempts < target * 25:
             attempts += 1
             fw = random.randint(120, 280)
-            fx = random.randint(70, MAP_WIDTH - fw - 70)
-            fy = random.randint(120, MAP_HEIGHT - 340)
+            fx = random.randint(10, MAP_WIDTH - fw - 10)
+            fy = random.randint(120 + PLATFORM_Y_OFFSET, MAP_HEIGHT - 340 + PLATFORM_Y_OFFSET)
             candidate = Platform(fx, fy, fw, 40)
             if not self._is_too_close(platforms, candidate, 60, 140):
                 platforms.append(candidate)
@@ -1524,8 +1547,8 @@ class Game:
         while len(platforms) - 1 < target and attempts < target * 25:
             attempts += 1
             nw = random.randint(90, 160)
-            nx = random.randint(60, MAP_WIDTH - nw - 60)
-            ny = random.randint(120, MAP_HEIGHT - 340)
+            nx = random.randint(10, MAP_WIDTH - nw - 10)
+            ny = random.randint(120 + PLATFORM_Y_OFFSET, MAP_HEIGHT - 340 + PLATFORM_Y_OFFSET)
             candidate = Platform(nx, ny, nw, 30)
             if not self._is_too_close(platforms, candidate, 50, 120):
                 platforms.append(candidate)
