@@ -57,6 +57,10 @@ UPSIDE_DOWN_MOUNTAIN_DARK = (20, 10, 20)
 UPSIDE_DOWN_MOUNTAIN_LIGHT = (45, 30, 45)
 PLATFORM_BROWN = (139, 89, 19)
 PLATFORM_DARK = (101, 60, 14)
+GRASS_COLOR = (100, 150, 50)
+UPSIDE_DOWN_PLATFORM_BROWN = (84, 75, 67)
+UPSIDE_DOWN_PLATFORM_DARK = (41, 38, 35)
+UPSIDE_DOWN_GRASS_COLOR = (50, 67, 33)
 UI_LIGHT = (230, 230, 230)
 PLATFORM_Y_OFFSET = 80
 
@@ -67,10 +71,8 @@ class PlayerState(Enum):
 class Platform:
     def __init__(self, x, y, width, height):
         self.rect = pygame.Rect(x, y, width, height)
-        self.color = PLATFORM_BROWN
-        self.edge_color = PLATFORM_DARK
 
-    def draw(self, surface, zoom, cam_x, cam_y):
+    def draw(self, surface, zoom, cam_x, cam_y, platform_color, edge_color, grass_color):
         sx = int(self.rect.x * zoom - cam_x)
         sy = int(self.rect.y * zoom - cam_y)
         sw = max(1, int(self.rect.width * zoom))
@@ -80,9 +82,9 @@ class Platform:
         if (draw_rect.right < 0 or draw_rect.left > SCREEN_WIDTH or 
             draw_rect.bottom < 0 or draw_rect.top > SCREEN_HEIGHT):
             return
-        pygame.draw.rect(surface, self.color, draw_rect)
-        pygame.draw.rect(surface, self.edge_color, draw_rect, max(1, int(3 * zoom)))
-        pygame.draw.line(surface, (100, 150, 50),
+        pygame.draw.rect(surface, platform_color, draw_rect)
+        pygame.draw.rect(surface, edge_color, draw_rect, max(1, int(3 * zoom)))
+        pygame.draw.line(surface, grass_color,
                         (draw_rect.left, draw_rect.top),
                         (draw_rect.right, draw_rect.top), max(1, int(4 * zoom)))
 
@@ -568,6 +570,9 @@ class Game:
         self.current_mountain_light = MOUNTAIN_LIGHT
         self.current_mountain_dark = MOUNTAIN_DARK
         self.current_cloud_color = WHITE
+        self.current_platform_brown = PLATFORM_BROWN
+        self.current_platform_dark = PLATFORM_DARK
+        self.current_grass_color = GRASS_COLOR
         
         # Initialize world
         self.platforms = self.generate_platforms()
@@ -745,13 +750,16 @@ class Game:
             t = min(1.0, self.transition_elapsed / self.transition_duration)
             def lerp(c1, c2):
                 return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
-            (f_top, f_bot, f_light, f_dark, f_cloud) = self.transition_from
-            (t_top, t_bot, t_light, t_dark, t_cloud) = self.transition_to
+            (f_top, f_bot, f_light, f_dark, f_cloud, f_pbrown, f_pdark, f_grass) = self.transition_from
+            (t_top, t_bot, t_light, t_dark, t_cloud, t_pbrown, t_pdark, t_grass) = self.transition_to
             self.current_sky_top = lerp(f_top, t_top)
             self.current_sky_bottom = lerp(f_bot, t_bot)
             self.current_mountain_light = lerp(f_light, t_light)
             self.current_mountain_dark = lerp(f_dark, t_dark)
             self.current_cloud_color = lerp(f_cloud, t_cloud)
+            self.current_platform_brown = lerp(f_pbrown, t_pbrown)
+            self.current_platform_dark = lerp(f_pdark, t_pdark)
+            self.current_grass_color = lerp(f_grass, t_grass)
             self.ui_t = self.ui_from + (self.ui_to - self.ui_from) * t
             self.background_surface = self.create_background()
             if t >= 1.0:
@@ -1268,7 +1276,10 @@ class Game:
         
         # Draw world objects
         for platform in self.platforms:
-            platform.draw(self.screen, zoom, cam_x, cam_y)
+            platform.draw(self.screen, zoom, cam_x, cam_y, 
+                         self.current_platform_brown, 
+                         self.current_platform_dark, 
+                         self.current_grass_color)
 
         # Draw portal on top of platforms but behind players
         if self.portal:
@@ -1366,6 +1377,9 @@ class Game:
             self.current_mountain_light,
             self.current_mountain_dark,
             self.current_cloud_color,
+            self.current_platform_brown,
+            self.current_platform_dark,
+            self.current_grass_color,
         )
         self.transition_to = target_palette
         self.ui_from = self.ui_t
@@ -1378,6 +1392,9 @@ class Game:
         self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
         self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
         self.current_cloud_color = GREY_CLOUD
+        self.current_platform_brown = UPSIDE_DOWN_PLATFORM_BROWN
+        self.current_platform_dark = UPSIDE_DOWN_PLATFORM_DARK
+        self.current_grass_color = UPSIDE_DOWN_GRASS_COLOR
         self.background_surface = self.create_background()
 
     def _apply_light_colors(self):
@@ -1387,6 +1404,9 @@ class Game:
         self.current_mountain_light = MOUNTAIN_LIGHT
         self.current_mountain_dark = MOUNTAIN_DARK
         self.current_cloud_color = WHITE
+        self.current_platform_brown = PLATFORM_BROWN
+        self.current_platform_dark = PLATFORM_DARK
+        self.current_grass_color = GRASS_COLOR
         self.background_surface = self.create_background()
 
     def _start_transition_to_upside_down(self):
@@ -1396,6 +1416,9 @@ class Game:
             UPSIDE_DOWN_MOUNTAIN_LIGHT,
             UPSIDE_DOWN_MOUNTAIN_DARK,
             GREY_CLOUD,
+            UPSIDE_DOWN_PLATFORM_BROWN,
+            UPSIDE_DOWN_PLATFORM_DARK,
+            UPSIDE_DOWN_GRASS_COLOR,
         )
         self._start_color_transition(target, 1.0)
 
@@ -1406,6 +1429,9 @@ class Game:
             MOUNTAIN_LIGHT,
             MOUNTAIN_DARK,
             WHITE,
+            PLATFORM_BROWN,
+            PLATFORM_DARK,
+            GRASS_COLOR,
         )
         self._start_color_transition(target, 0.0)
 
