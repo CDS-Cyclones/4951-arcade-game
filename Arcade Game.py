@@ -747,7 +747,7 @@ class Game:
                          SCREEN_HEIGHT // 2 - 60))
         
         # Instructions
-        info1 = self.font_main.render("Press 6 to restart", True, BLACK)
+        info1 = self.font_main.render("Press 6 for Title Screen", True, BLACK)
         info2 = self.font_main.render("Press 5 to quit", True, BLACK)
         self.screen.blit(info1, 
                         (SCREEN_WIDTH // 2 - info1.get_width() // 2,
@@ -1180,9 +1180,9 @@ class Game:
                     if event.key == pygame.K_u:
                         self.player2.dash()
                 else:
-                    # Game over - restart on W
+                    # Game over - go to title screen on 6
                     if event.key == pygame.K_6:
-                        self.reset()
+                        self.go_to_title_screen()
 
     def _reset_to_default_theme(self):
         """Reset all theme settings to default normal map colors and gravity."""
@@ -1230,6 +1230,15 @@ class Game:
         
         # Reset camera
         self.camera = Camera(self.ground_top)
+
+    def go_to_title_screen(self):
+        """Reset gameplay state, then show the DANGER THINGS title screen."""
+        # Ensure a fresh gameplay state when players return from the title flow
+        self.reset()
+        # Show title flow
+        self.show_title_screen = True
+        self.show_color_selection_screen = False
+        self.show_start_screen = False
 
     def _is_too_close(self, platforms, candidate, pad_x, pad_y):
         """Reject platform placement when padded candidate bounds collide with any existing platform."""
