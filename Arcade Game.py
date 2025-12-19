@@ -38,8 +38,8 @@ TAG_COOLDOWN = 30
 MATCH_DURATION = 60
 
 # Colors
-WHITE = (255,255,255) #(255,255,255) NORMAL VALUE
-GREY_CLOUD = (60, 60, 70) #(60,60,70) NORMAL VALUE
+WHITE = (255, 255, 255)
+GREY_CLOUD = (60, 60, 70)
 BLACK = (0, 0, 0)
 RED = (220, 50, 50)
 BLUE = (50, 100, 220)
@@ -47,16 +47,14 @@ GREEN = (0, 255, 0)
 YELLOW = (255, 255, 0)
 PURPLE = (200, 50, 200)
 ORANGE = (255, 165, 0)
-SHIRT_RED = (220, 50, 50)
-SHIRT_BLUE = (50, 100, 220)
-SKY_TOP = (115, 156, 255) #(115, 156, 255) NORMAL VALUE
-SKY_BOTTOM = (210, 230, 255) #(210, 230, 255) NORMAL VALUE
-UPSIDE_DOWN_SKY_TOP = (40,8,48) #(40,8,48) NORMAL VALUE
-UPSIDE_DOWN_SKY_BOTTOM = (140,23,35) #(140,23,35) NORMAL VALUE
-MOUNTAIN_DARK = (80, 100, 80) #(80, 100, 80) NORMAL VALUE
-MOUNTAIN_LIGHT = (120, 140, 100) #(120, 140, 100) NORMAL VALUE
-UPSIDE_DOWN_MOUNTAIN_DARK = (20, 10, 20) #(20,10,20) NORMAL VALUE
-UPSIDE_DOWN_MOUNTAIN_LIGHT = (45, 30, 45) #(45,30,45) NORMAL VALUE
+SKY_TOP = (115, 156, 255)
+SKY_BOTTOM = (210, 230, 255)
+UPSIDE_DOWN_SKY_TOP = (40, 8, 48)
+UPSIDE_DOWN_SKY_BOTTOM = (140, 23, 35)
+MOUNTAIN_DARK = (80, 100, 80)
+MOUNTAIN_LIGHT = (120, 140, 100)
+UPSIDE_DOWN_MOUNTAIN_DARK = (20, 10, 20)
+UPSIDE_DOWN_MOUNTAIN_LIGHT = (45, 30, 45)
 PLATFORM_BROWN = (139, 89, 19)
 PLATFORM_DARK = (101, 60, 14)
 
@@ -118,7 +116,7 @@ class Player:
 
     def jump(self):
         if self.jumps_remaining > 0:
-            self.vy = -15
+            self.vy = JUMP_VELOCITY
             self.jumps_remaining -= 1
             self.on_ground = False
 
@@ -475,7 +473,7 @@ class Camera:
         
         # 7. Clamp camera to world boundaries
         max_cam_x = max(0, MAP_WIDTH * self.target_zoom - SCREEN_WIDTH)
-        max_cam_y = max(0, self.ground_top * self.target_zoom - SCREEN_HEIGHT) #ADDED PLUS 10
+        max_cam_y = max(0, self.ground_top * self.target_zoom - SCREEN_HEIGHT)
         
         self.target_x = max(0, min(self.target_x, max_cam_x))
         self.target_y = max(0, min(self.target_y, max_cam_y))
@@ -948,6 +946,17 @@ class Game:
         for px, py in narrow_platforms:
             pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 25, 7))
 
+    def _get_available_colors(self):
+        """Return list of all available color options."""
+        return [
+            ("Red", RED),
+            ("Blue", BLUE),
+            ("Green", GREEN),
+            ("Yellow", YELLOW),
+            ("Purple", PURPLE),
+            ("Orange", ORANGE),
+        ]
+
     def draw_color_selection_screen(self):
         """Draw the color selection screen with player previews and 6 color options."""
         self.screen.fill(UPSIDE_DOWN_SKY_BOTTOM)
@@ -957,14 +966,7 @@ class Game:
                           SCREEN_HEIGHT // 2 - 250))
 
         # All available colors
-        all_colors = [
-            ("Red", RED),
-            ("Blue", BLUE),
-            ("Green", GREEN),
-            ("Yellow", YELLOW),
-            ("Purple", PURPLE),
-            ("Orange", ORANGE),
-        ]
+        all_colors = self._get_available_colors()
 
         # Create a smaller font for color options
         tiny_font = pygame.font.Font(None, 20)
@@ -1028,8 +1030,6 @@ class Game:
             color_surface = tiny_font.render(color_text, True, text_color)
             cx = p2_preview_x - color_surface.get_width() // 2
             self.screen.blit(color_surface, (cx, 350 + i * 22))
-        
-        # (duplicate color list removed)
 
         # Confirmation instruction
         space_text = self.font_main.render("Press SPACE to confirm and continue to map selection", True, BLACK)
@@ -1086,7 +1086,7 @@ class Game:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             # All available colors
-            all_colors = [RED, BLUE, GREEN, YELLOW, PURPLE, ORANGE]
+            all_colors = [color for _, color in self._get_available_colors()]
             
             # Player 1 color cycling with Q/S, A/D keys (skip any colors taken by player 2)
             if event.key == pygame.K_q or event.key == pygame.K_s or event.key == pygame.K_a or event.key == pygame.K_d:
@@ -1150,45 +1150,20 @@ class Game:
 
     def handle_event(self, event):
         """Handle pygame events."""
-        global GRAVITY
         if event.type == pygame.QUIT:
             self.running = False
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
                 if event.key == pygame.K_1:
-                    # Reset colors and gravity to defaults for normal map
-                    GRAVITY = 0.5
-                    self.current_sky_top = SKY_TOP
-                    self.current_sky_bottom = SKY_BOTTOM
-                    self.current_mountain_light = MOUNTAIN_LIGHT
-                    self.current_mountain_dark = MOUNTAIN_DARK
-                    self.current_cloud_color = WHITE
-                    self.background_surface = self.create_background()
-                    
+                    self._reset_to_default_theme()
                     self.platforms = self.generate_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_6:
-                    # Floating map uses upside-down sky and mountain colors and grey clouds
-                    GRAVITY = 0.5
-                    self.current_sky_top = UPSIDE_DOWN_SKY_TOP
-                    self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
-                    self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
-                    self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
-                    self.current_cloud_color = GREY_CLOUD
-                    self.background_surface = self.create_background()
-
+                    self._set_floating_theme()
                     self.platforms = self.generate_floating_platforms()
                     self.show_start_screen = False
                 elif event.key == pygame.K_2:
-                    # Reset colors and gravity to defaults for narrow platforms
-                    GRAVITY = 0.5
-                    self.current_sky_top = SKY_TOP
-                    self.current_sky_bottom = SKY_BOTTOM
-                    self.current_mountain_light = MOUNTAIN_LIGHT
-                    self.current_mountain_dark = MOUNTAIN_DARK
-                    self.current_cloud_color = WHITE
-                    self.background_surface = self.create_background()
-                    
+                    self._reset_to_default_theme()
                     self.platforms = self.generate_narrow_platforms()
                     self.show_start_screen = False
             else:
@@ -1209,9 +1184,30 @@ class Game:
                     if event.key == pygame.K_6:
                         self.reset()
 
+    def _reset_to_default_theme(self):
+        """Reset all theme settings to default normal map colors and gravity."""
+        global GRAVITY
+        GRAVITY = 0.5
+        self.current_sky_top = SKY_TOP
+        self.current_sky_bottom = SKY_BOTTOM
+        self.current_mountain_light = MOUNTAIN_LIGHT
+        self.current_mountain_dark = MOUNTAIN_DARK
+        self.current_cloud_color = WHITE
+        self.background_surface = self.create_background()
+    
+    def _set_floating_theme(self):
+        """Set theme for floating platforms map with upside-down colors."""
+        global GRAVITY
+        GRAVITY = 0.2
+        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
+        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
+        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
+        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
+        self.current_cloud_color = GREY_CLOUD
+        self.background_surface = self.create_background()
+
     def reset(self):
         """Reset game state for a new match."""
-        global GRAVITY
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
         self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
         self.player2 = Player(2100, ground_spawn_y, 2, BLUE, BLUE)
@@ -1226,19 +1222,11 @@ class Game:
         self.frame_counter = 0
         self.state = GameState.PLAYING
         
-        # Reset colors and gravity to defaults
-        GRAVITY = 0.5
-        self.current_sky_top = SKY_TOP
-        self.current_sky_bottom = SKY_BOTTOM
-        self.current_mountain_light = MOUNTAIN_LIGHT
-        self.current_mountain_dark = MOUNTAIN_DARK
-        self.current_cloud_color = WHITE
+        # Reset to default theme
+        self._reset_to_default_theme()
         
         # Regenerate platforms for variety
         self.platforms = self.generate_platforms()
-        
-        # Regenerate background with reset colors
-        self.background_surface = self.create_background()
         
         # Reset camera
         self.camera = Camera(self.ground_top)
@@ -1246,10 +1234,7 @@ class Game:
     def _is_too_close(self, platforms, candidate, pad_x, pad_y):
         """Reject platform placement when padded candidate bounds collide with any existing platform."""
         padded = candidate.rect.inflate(pad_x * 2, pad_y * 2)
-        for existing in platforms:
-            if padded.colliderect(existing.rect):
-                return True
-        return False
+        return any(padded.colliderect(existing.rect) for existing in platforms)
 
     def generate_platforms(self):
         """Generate the default map with evenly spaced common platforms (no overlaps)."""
@@ -1282,20 +1267,6 @@ class Game:
             candidate = Platform(fx, fy, fw, 40)
             if not self._is_too_close(platforms, candidate, 60, 140):
                 platforms.append(candidate)
-        
-        # Set low gravity for this map
-        global GRAVITY
-        GRAVITY = 0.2
-        
-        # Switch to upside down sky and mountains
-        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
-        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
-        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
-        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
-        self.current_cloud_color = GREY_CLOUD
-        
-        # Regenerate background with new colors
-        self.background_surface = self.create_background()
         
         return platforms
 
