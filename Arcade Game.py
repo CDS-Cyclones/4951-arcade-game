@@ -120,6 +120,7 @@ class Player:
         if self.jumps_remaining > 0:
             self.vy = -15
             self.jumps_remaining -= 1
+            self.on_ground = False
 
     def update(self, platforms):
         self.vy += GRAVITY
@@ -133,9 +134,6 @@ class Player:
         elif self.x + self.width > MAP_WIDTH:
             self.x = MAP_WIDTH - self.width
             self.vx = 0
-
-        # Reset ground state before checking
-        self.on_ground = False
 
         # Check world floor
         if self.y + self.height >= MAP_HEIGHT:
@@ -182,7 +180,7 @@ class Player:
             self.glow_intensity = max(self.glow_intensity - 0.1, 0.0)
             if self.tagged_timer > 0:
                 self.tagged_timer -= 1
-
+                
         if self.tagged_cooldown > 0:
             self.tagged_cooldown -= 1
 
@@ -196,9 +194,9 @@ class Player:
             self.vx = 0
         
         # Animation state - set AFTER friction is applied
-        # Only change animation if on_ground AND vy is near zero (stable on platform)
-        if self.on_ground and abs(self.vy) <= 0.5:
-            # On ground and stable: idle when still, running when moving
+        # Trust on_ground flag completely - it's set properly by collision detection
+        if self.on_ground:
+            # On ground: idle when still, running when moving
             if abs(self.vx) == 0 and self.dash_timer == 0:
                 self.current_animation = "idle"
                 self.run_cycle = 0
@@ -212,7 +210,7 @@ class Player:
                 if self.run_cycle > 4:
                     self.run_cycle -= 4
         else:
-            # In air or unstable: jumping when not moving horizontally much, running when moving sideways
+            # In air: jumping when not moving horizontally much, running when moving sideways
             if abs(self.vx) > 2.0:
                 self.current_animation = "running"
                 self.run_cycle += abs(self.vx) * 0.08
