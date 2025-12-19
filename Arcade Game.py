@@ -85,11 +85,11 @@ class Platform:
                         (draw_rect.right, draw_rect.top), max(1, int(4 * zoom)))
 
 class Portal:
-    """A bright red portal that switches the world to upside-down colors."""
+    """A bright red portal that switches the world colors."""
     def __init__(self, x, y, width, height):
         self.rect = pygame.Rect(x, y, width, height)
 
-    def draw(self, surface, zoom, cam_x, cam_y):
+    def draw(self, surface, zoom, cam_x, cam_y, alpha=1.0):
         # Transform to screen space
         sx = int(self.rect.x * zoom - cam_x)
         sy = int(self.rect.y * zoom - cam_y)
@@ -108,13 +108,21 @@ class Portal:
         base_color = (255, 40, 40)
         glow_color = (255, 90 + int(100 * glow_phase), 90 + int(80 * glow_phase))
 
-        # Fill and outline
-        pygame.draw.rect(surface, base_color, draw_rect)
-        pygame.draw.rect(surface, glow_color, draw_rect, max(2, int(4 * zoom)))
-        # Inner outline for depth
-        inner = draw_rect.inflate(-max(3, int(6 * zoom)), -max(3, int(6 * zoom)))
+        radius = max(4, int(8 * zoom))
+        a = max(0, min(1.0, alpha))
+
+        # Draw on an alpha surface
+        portal_surf = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        def with_alpha(col):
+            return (col[0], col[1], col[2], int(255 * a))
+
+        pygame.draw.rect(portal_surf, with_alpha(base_color), portal_surf.get_rect(), border_radius=radius)
+        pygame.draw.rect(portal_surf, with_alpha(glow_color), portal_surf.get_rect(), max(2, int(4 * zoom)), border_radius=radius)
+        inner = portal_surf.get_rect().inflate(-max(3, int(6 * zoom)), -max(3, int(6 * zoom)))
         if inner.width > 0 and inner.height > 0:
-            pygame.draw.rect(surface, glow_color, inner, max(1, int(3 * zoom)))
+            pygame.draw.rect(portal_surf, with_alpha(glow_color), inner, max(1, int(3 * zoom)), border_radius=radius)
+
+        surface.blit(portal_surf, (draw_rect.x, draw_rect.y))
 
 class Player:
     def __init__(self, x, y, player_id, color_primary, color_shirt):
@@ -562,6 +570,11 @@ class Game:
 
         # Theme state
         self.is_upside_down = False
+        self.transition_active = False
+        self.transition_elapsed = 0.0
+        self.transition_duration = 0.0
+        self.transition_from = None
+        self.transition_to = None
         
         # Initialize players at spawn positions
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
@@ -574,7 +587,12 @@ class Game:
         # Portal spawns on a platform and toggles world colors
         self.portal = None
         self.portal_cooldown = 0
-        self._spawn_portal_on_random_platform(40, 80)
+        self.portal_spawn_delay = 0
+        self.portal_needs_platform_fix = True  # spawn initial fallback then fix onto a platform
+        self.portal_fade_timer = 0.0
+        self.portal_fade_duration = 0.6
+        # First portal: intentionally place with fallback (may float), then corrected next update
+        self._spawn_portal_on_random_platform(40, 80, force_ground_fallback=True)
         
         # Game state
         self.player1.is_tagged = True
@@ -704,22 +722,63 @@ class Game:
         # Update camera
         self.camera.update(self.player1, self.player2)
 
-        # Portal collision: toggle colors and move portal to a new platform
+        # Color transition step
+        if self.transition_active:
+            self.transition_elapsed += 1.0 / FPS
+            t = min(1.0, self.transition_elapsed / self.transition_duration)
+            def lerp(c1, c2):
+                return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+            (f_top, f_bot, f_light, f_dark, f_cloud) = self.transition_from
+            (t_top, t_bot, t_light, t_dark, t_cloud) = self.transition_to
+            self.current_sky_top = lerp(f_top, t_top)
+            self.current_sky_bottom = lerp(f_bot, t_bot)
+            self.current_mountain_light = lerp(f_light, t_light)
+            self.current_mountain_dark = lerp(f_dark, t_dark)
+            self.current_cloud_color = lerp(f_cloud, t_cloud)
+            self.background_surface = self.create_background()
+            if t >= 1.0:
+                self.transition_active = False
+
+        # First-frame fix to move initial portal onto a platform
+        if self.portal_needs_platform_fix and self.portal_spawn_delay == 0:
+            if self.platforms:
+                w, h = (self.portal.rect.size if self.portal else (40, 80))
+                self._spawn_portal_on_random_platform(w, h)
+                self.portal_needs_platform_fix = False
+
+        # Handle portal spawn delay
+        if self.portal_spawn_delay > 0:
+            self.portal_spawn_delay -= 1
+            if self.portal_spawn_delay == 0:
+                # Spawn after delay if portal is absent
+                if self.portal is None:
+                    self._spawn_portal_on_random_platform(40, 80)
+
+        # Fade-in timer for newly spawned portals
+        if self.portal and self.portal_fade_timer < self.portal_fade_duration:
+            self.portal_fade_timer = min(self.portal_fade_duration, self.portal_fade_timer + 1.0 / FPS)
+
+        # Portal collision: toggle colors and start respawn delay
         if self.portal_cooldown > 0:
             self.portal_cooldown -= 1
-        if self.portal and self.portal_cooldown == 0:
+        portal_ready = (
+            self.portal
+            and self.portal_cooldown == 0
+            and self.portal_fade_timer >= self.portal_fade_duration
+        )
+        if portal_ready:
             if (self.player1.get_bounds().colliderect(self.portal.rect) or
                 self.player2.get_bounds().colliderect(self.portal.rect)):
                 if not self.is_upside_down:
-                    self._apply_upside_down_colors()
+                    self._start_transition_to_upside_down()
                     self.is_upside_down = True
                 else:
-                    self._apply_light_colors()
+                    self._start_transition_to_light()
                     self.is_upside_down = False
-                # Move portal and set short cooldown to avoid retriggering
-                w, h = self.portal.rect.size
-                self._spawn_portal_on_random_platform(w, h)
-                self.portal_cooldown = max(20, FPS // 2)
+                # Despawn portal and schedule a delayed respawn (5-10s)
+                self.portal = None
+                self.portal_spawn_delay = random.randint(5 * FPS, 10 * FPS)
+                self.portal_cooldown = max(10, FPS // 4)
 
         # Update game timer
         if self.state == GameState.PLAYING:
@@ -928,37 +987,34 @@ class Game:
             pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 40, 8))
     
     def draw_map_preview_floating(self, x, y):
-        """Draw a small preview of the floating platforms map."""
+        """Draw a small preview of the floating platforms map (light colors)."""
         preview_width, preview_height = 250, 150
         pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 2)
         
-        # Draw with upside down colors to distinguish
+        # Draw sky gradient (light)
         for iy in range(preview_height):
             ratio = iy / preview_height
-            r = int(UPSIDE_DOWN_SKY_TOP[0] + (UPSIDE_DOWN_SKY_BOTTOM[0] - UPSIDE_DOWN_SKY_TOP[0]) * ratio)
-            g = int(UPSIDE_DOWN_SKY_TOP[1] + (UPSIDE_DOWN_SKY_BOTTOM[1] - UPSIDE_DOWN_SKY_TOP[1]) * ratio)
-            b = int(UPSIDE_DOWN_SKY_TOP[2] + (UPSIDE_DOWN_SKY_BOTTOM[2] - UPSIDE_DOWN_SKY_TOP[2]) * ratio)
+            r = int(SKY_TOP[0] + (SKY_BOTTOM[0] - SKY_TOP[0]) * ratio)
+            g = int(SKY_TOP[1] + (SKY_BOTTOM[1] - SKY_TOP[1]) * ratio)
+            b = int(SKY_TOP[2] + (SKY_BOTTOM[2] - SKY_TOP[2]) * ratio)
             pygame.draw.line(self.screen, (r, g, b), (x, y + iy), (x + preview_width, y + iy))
         
-        # Draw mountains at consistent positions (same as other previews)
-        # Mountain 1 (left) - upside-down darker shade
+        # Mountains (light theme)
         mountain_points1 = [(x + 10, y + 115), (x + 45, y + 50), (x + 80, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points1)
-        # Mountain 2 (center) - upside-down lighter shade
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points1)
         mountain_points2 = [(x + 85, y + 115), (x + 130, y + 40), (x + 175, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_LIGHT, mountain_points2)
-        # Mountain 3 (right) - upside-down darker shade
+        pygame.draw.polygon(self.screen, MOUNTAIN_LIGHT, mountain_points2)
         mountain_points3 = [(x + 180, y + 115), (x + 215, y + 55), (x + 250, y + 115)]
-        pygame.draw.polygon(self.screen, UPSIDE_DOWN_MOUNTAIN_DARK, mountain_points3)
+        pygame.draw.polygon(self.screen, MOUNTAIN_DARK, mountain_points3)
         
-        # Draw connected dark grey clouds (different spot from default map preview)
-        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 35, y + 20), 6)
-        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 48, y + 20), 5)
-        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 60, y + 22), 5)
-        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 190, y + 25), 6)
-        pygame.draw.circle(self.screen, GREY_CLOUD, (x + 205, y + 25), 5)
+        # Light clouds
+        pygame.draw.circle(self.screen, WHITE, (x + 35, y + 20), 6)
+        pygame.draw.circle(self.screen, WHITE, (x + 48, y + 20), 5)
+        pygame.draw.circle(self.screen, WHITE, (x + 60, y + 22), 5)
+        pygame.draw.circle(self.screen, WHITE, (x + 190, y + 25), 6)
+        pygame.draw.circle(self.screen, WHITE, (x + 205, y + 25), 5)
         
-        # Draw floating platforms scattered
+        # Floating platforms scattered
         floating_platforms = [(20, 30), (80, 70), (160, 40), (200, 100), (70, 120), (180, 80)]
         for px, py in floating_platforms:
             pygame.draw.rect(self.screen, PLATFORM_BROWN, (x + px, y + py, 35, 6))
@@ -1195,7 +1251,11 @@ class Game:
 
         # Draw portal on top of platforms but behind players
         if self.portal:
-            self.portal.draw(self.screen, zoom, cam_x, cam_y)
+            if self.portal_fade_duration <= 0:
+                alpha = 1.0
+            else:
+                alpha = min(1.0, self.portal_fade_timer / self.portal_fade_duration)
+            self.portal.draw(self.screen, zoom, cam_x, cam_y, alpha)
         
         self.player1.draw(self.screen, zoom, cam_x, cam_y)
         self.player2.draw(self.screen, zoom, cam_x, cam_y)
@@ -1274,8 +1334,22 @@ class Game:
         self.current_cloud_color = GREY_CLOUD
         self.background_surface = self.create_background()
 
+    def _start_color_transition(self, target_palette, duration=0.6):
+        """Begin a smooth transition to the target palette over duration seconds."""
+        self.transition_active = True
+        self.transition_elapsed = 0.0
+        self.transition_duration = max(0.05, duration)
+        self.transition_from = (
+            self.current_sky_top,
+            self.current_sky_bottom,
+            self.current_mountain_light,
+            self.current_mountain_dark,
+            self.current_cloud_color,
+        )
+        self.transition_to = target_palette
+
     def _apply_upside_down_colors(self):
-        """Apply upside-down color palette without changing gravity."""
+        """Apply upside-down color palette without changing gravity (instant)."""
         self.current_sky_top = UPSIDE_DOWN_SKY_TOP
         self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
         self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
@@ -1284,7 +1358,7 @@ class Game:
         self.background_surface = self.create_background()
 
     def _apply_light_colors(self):
-        """Apply light color palette without changing gravity."""
+        """Apply light color palette without changing gravity (instant)."""
         self.current_sky_top = SKY_TOP
         self.current_sky_bottom = SKY_BOTTOM
         self.current_mountain_light = MOUNTAIN_LIGHT
@@ -1292,24 +1366,56 @@ class Game:
         self.current_cloud_color = WHITE
         self.background_surface = self.create_background()
 
-    def _spawn_portal_on_random_platform(self, portal_w=40, portal_h=80):
-        """Place the portal so it sits on top of a random non-ground platform.
-        Falls back to center above ground if no platforms available.
+    def _start_transition_to_upside_down(self):
+        target = (
+            UPSIDE_DOWN_SKY_TOP,
+            UPSIDE_DOWN_SKY_BOTTOM,
+            UPSIDE_DOWN_MOUNTAIN_LIGHT,
+            UPSIDE_DOWN_MOUNTAIN_DARK,
+            GREY_CLOUD,
+        )
+        self._start_color_transition(target)
+
+    def _start_transition_to_light(self):
+        target = (
+            SKY_TOP,
+            SKY_BOTTOM,
+            MOUNTAIN_LIGHT,
+            MOUNTAIN_DARK,
+            WHITE,
+        )
+        self._start_color_transition(target)
+
+    def _spawn_portal_on_random_platform(self, portal_w=40, portal_h=80, force_ground_fallback=False):
+        """Place the portal on top of a random non-ground platform.
+        If platforms missing or forced, use a ground fallback near center.
         """
-        if not self.platforms:
-            # Create a default portal if platforms aren't generated yet
+        if not self.platforms or force_ground_fallback:
             x = MAP_WIDTH // 2 - portal_w // 2
-            y = self.ground_top - portal_h - 10
-            self.portal = Portal(x, y, portal_w, portal_h)
+            y = max(0, self.ground_top - portal_h)
+            if self.portal is None:
+                self.portal = Portal(x, y, portal_w, portal_h)
+            else:
+                self.portal.rect.update(x, y, portal_w, portal_h)
+            self.portal_fade_timer = 0.0
             return
 
-        # Exclude ground platform (assumed first in list)
-        candidates = self.platforms[1:] if len(self.platforms) > 1 else []
-        platform = random.choice(candidates) if candidates else self.platforms[0]
+        # Exclude ground platform (assumed first in list) and require enough width
+        candidates = [p for p in self.platforms[1:] if p.rect.width >= portal_w + 10]
 
-        x_min = platform.rect.left
-        x_max = max(x_min, platform.rect.right - portal_w)
-        x = random.randint(x_min, x_max) if x_max > x_min else x_min + (platform.rect.width - portal_w) // 2
+        # If no suitable non-ground platforms, fall back to widest non-ground or ground
+        if not candidates:
+            non_ground = self.platforms[1:] if len(self.platforms) > 1 else []
+            if non_ground:
+                platform = max(non_ground, key=lambda p: p.rect.width)
+            else:
+                platform = self.platforms[0]
+        else:
+            platform = random.choice(candidates)
+
+        # Center the portal on the chosen platform and keep inside bounds
+        x = platform.rect.centerx - portal_w // 2
+        x = max(platform.rect.left, min(x, platform.rect.right - portal_w))
         y = platform.rect.top - portal_h
         y = max(0, y)
 
@@ -1317,6 +1423,7 @@ class Game:
             self.portal = Portal(x, y, portal_w, portal_h)
         else:
             self.portal.rect.update(x, y, portal_w, portal_h)
+        self.portal_fade_timer = 0.0
 
     def _set_normal_gravity(self):
         global GRAVITY
@@ -1352,9 +1459,13 @@ class Game:
         # Reset camera
         self.camera = Camera(self.ground_top)
 
-        # Recreate portal on a random platform
+        # Recreate portal: spawn fallback then fix onto platform next update
         self.portal_cooldown = 0
-        self._spawn_portal_on_random_platform(40, 80)
+        self.portal_spawn_delay = 0
+        self.portal_needs_platform_fix = True
+        self.portal_fade_timer = 0.0
+        self.portal = None
+        self._spawn_portal_on_random_platform(40, 80, force_ground_fallback=True)
 
     def go_to_title_screen(self):
         """Reset gameplay state, then show the DANGER THINGS title screen."""
