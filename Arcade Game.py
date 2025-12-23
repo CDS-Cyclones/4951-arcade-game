@@ -1352,6 +1352,10 @@ class Game:
         self.current_mountain_light = MOUNTAIN_LIGHT
         self.current_mountain_dark = MOUNTAIN_DARK
         self.current_cloud_color = WHITE
+        self.current_platform_brown = PLATFORM_BROWN
+        self.current_platform_dark = PLATFORM_DARK
+        self.current_grass_color = GRASS_COLOR
+        self.ui_t = 0.0
         self.background_surface = self.create_background()
         self.is_upside_down = False
     
