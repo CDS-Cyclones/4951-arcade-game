@@ -12,7 +12,6 @@ GRAVITY = 0.5
 MAP_WIDTH = 2000
 MAP_HEIGHT = 1600
 # Movement
-RUN_THRESHOLD = 1.2
 BASE_SPEED = 7
 TAGGED_SPEED_BOOST = 1.15
 JUMP_VELOCITY = -15
@@ -62,7 +61,6 @@ UPSIDE_DOWN_PLATFORM_BROWN = (84, 75, 67)
 UPSIDE_DOWN_PLATFORM_DARK = (41, 38, 35)
 UPSIDE_DOWN_GRASS_COLOR = (50, 67, 33)
 UI_LIGHT = (140,140,140)
-SKIN_COLOR = (255, 200, 150)
 PLATFORM_Y_OFFSET = 80
 
 class PlayerState(Enum):
@@ -130,11 +128,10 @@ class Portal:
         surface.blit(portal_surf, (draw_rect.x, draw_rect.y))
 
 class Player:
-    def __init__(self, x, y, player_id, color_primary, color_shirt):
+    def __init__(self, x, y, player_id, color_shirt):
         self.x = x
         self.y = y
         self.player_id = player_id
-        self.color_primary = color_primary
         self.color_shirt = color_shirt
         self.vx = 0
         self.vy = 0
@@ -595,8 +592,8 @@ class Game:
         
         # Initialize players at spawn positions
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
-        self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
-        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, BLUE, BLUE)
+        self.player1 = Player(200, ground_spawn_y, 1, RED)
+        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, BLUE)
         
         # Initialize camera with new simplified class
         self.camera = Camera(self.ground_top)
@@ -649,7 +646,7 @@ class Game:
         
         # Map selection mini character state
         self.selected_map_index = 1  # 0=default, 1=floating, 2=narrow
-        self.map_positions = [100, 400, 700]  # x positions of the three map previews
+
         self.current_map_type = 0  # Tracks which map was actually loaded (0=default, 1=floating, 2=narrow)
         self.prev_selected_map_index = 1  # Track previous selection for fade effect
         self.map_select_fade_timer = 0.0
@@ -1370,7 +1367,6 @@ class Game:
                     current_index = (current_index + step) % len(all_colors)
                     candidate = all_colors[current_index]
                     if candidate != self.player2.color_shirt:
-                        self.player1.color_primary = candidate
                         self.player1.color_shirt = candidate
                         break
             
@@ -1382,7 +1378,6 @@ class Game:
                     current_index = (current_index + step) % len(all_colors)
                     candidate = all_colors[current_index]
                     if candidate != self.player1.color_shirt:
-                        self.player2.color_primary = candidate
                         self.player2.color_shirt = candidate
                         break
             
@@ -1490,17 +1485,6 @@ class Game:
         self.background_surface = self.create_background()
         self.is_upside_down = False
     
-    def _set_floating_theme(self):
-        """Set theme for floating platforms map with upside-down colors."""
-        global GRAVITY
-        GRAVITY = 0.2
-        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
-        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
-        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
-        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
-        self.current_cloud_color = GREY_CLOUD
-        self.background_surface = self.create_background()
-
     def _start_color_transition(self, target_palette, target_ui_t, duration=0.6):
         """Begin a smooth transition to the target palette over duration seconds."""
         self.transition_active = True
@@ -1519,30 +1503,6 @@ class Game:
         self.transition_to = target_palette
         self.ui_from = self.ui_t
         self.ui_to = target_ui_t
-
-    def _apply_upside_down_colors(self):
-        """Apply upside-down color palette without changing gravity (instant)."""
-        self.current_sky_top = UPSIDE_DOWN_SKY_TOP
-        self.current_sky_bottom = UPSIDE_DOWN_SKY_BOTTOM
-        self.current_mountain_light = UPSIDE_DOWN_MOUNTAIN_LIGHT
-        self.current_mountain_dark = UPSIDE_DOWN_MOUNTAIN_DARK
-        self.current_cloud_color = GREY_CLOUD
-        self.current_platform_brown = UPSIDE_DOWN_PLATFORM_BROWN
-        self.current_platform_dark = UPSIDE_DOWN_PLATFORM_DARK
-        self.current_grass_color = UPSIDE_DOWN_GRASS_COLOR
-        self.background_surface = self.create_background()
-
-    def _apply_light_colors(self):
-        """Apply light color palette without changing gravity (instant)."""
-        self.current_sky_top = SKY_TOP
-        self.current_sky_bottom = SKY_BOTTOM
-        self.current_mountain_light = MOUNTAIN_LIGHT
-        self.current_mountain_dark = MOUNTAIN_DARK
-        self.current_cloud_color = WHITE
-        self.current_platform_brown = PLATFORM_BROWN
-        self.current_platform_dark = PLATFORM_DARK
-        self.current_grass_color = GRASS_COLOR
-        self.background_surface = self.create_background()
 
     def _start_transition_to_upside_down(self):
         target = (
@@ -1623,8 +1583,8 @@ class Game:
         # Preserve selected player colors
         p1_color = self.player1.color_shirt if hasattr(self, 'player1') else RED
         p2_color = self.player2.color_shirt if hasattr(self, 'player2') else BLUE
-        self.player1 = Player(200, ground_spawn_y, 1, p1_color, p1_color)
-        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, p2_color, p2_color)
+        self.player1 = Player(200, ground_spawn_y, 1, p1_color)
+        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, p2_color)
         
         self.player1.is_tagged = True
         self.player2.is_tagged = False
