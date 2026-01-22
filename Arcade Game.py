@@ -1374,10 +1374,10 @@ class Game:
                         self.player1.color_shirt = candidate
                         break
             
-            # Player 2 color cycling with P/DOWN, LEFT/RIGHT keys (skip any colors taken by player 1)
-            if event.key == pygame.K_p or event.key == pygame.K_DOWN or event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
+            # Player 2 color cycling with P/DOWN keys (skip any colors taken by player 1)
+            if event.key == pygame.K_p or event.key == pygame.K_DOWN:
                 current_index = all_colors.index(self.player2.color_shirt)
-                step = -1 if (event.key == pygame.K_p or event.key == pygame.K_LEFT) else 1
+                step = -1 if event.key == pygame.K_p else 1
                 for _ in range(len(all_colors)):
                     current_index = (current_index + step) % len(all_colors)
                     candidate = all_colors[current_index]
