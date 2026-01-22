@@ -1620,8 +1620,11 @@ class Game:
     def reset(self):
         """Reset game state for a new match."""
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
-        self.player1 = Player(200, ground_spawn_y, 1, RED, RED)
-        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, BLUE, BLUE)
+        # Preserve selected player colors
+        p1_color = self.player1.color_shirt if hasattr(self, 'player1') else RED
+        p2_color = self.player2.color_shirt if hasattr(self, 'player2') else BLUE
+        self.player1 = Player(200, ground_spawn_y, 1, p1_color, p1_color)
+        self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, p2_color, p2_color)
         
         self.player1.is_tagged = True
         self.player2.is_tagged = False
@@ -1747,50 +1750,6 @@ class Game:
         fill_surf = font.render(text, True, fill_color)
         fill_rect = fill_surf.get_rect(center=center)
         self.screen.blit(fill_surf, fill_rect)
-
-    def draw_mini_player_preview(self, surface, x, y, color1, color2, zoom):
-        """Draw two mini players side-by-side at the given position with more detail."""
-        # Player 1 (left side)
-        px1 = x - 20
-        body_radius = int(8 * zoom)
-        head_radius = int(5 * zoom)
-        
-        # Body
-        pygame.draw.circle(surface, color1, (px1, y), body_radius)
-        # Head
-        pygame.draw.circle(surface, color1, (px1, y - int(10 * zoom)), head_radius)
-        
-        # Eyes
-        eye_offset = int(2 * zoom)
-        pygame.draw.circle(surface, BLACK, (px1 - eye_offset, y - int(10 * zoom)), 1)
-        pygame.draw.circle(surface, BLACK, (px1 + eye_offset, y - int(10 * zoom)), 1)
-        
-        # Arms
-        arm_length = int(6 * zoom)
-        pygame.draw.line(surface, color1, (px1 - body_radius, y), (px1 - body_radius - arm_length, y), 2)
-        pygame.draw.line(surface, color1, (px1 + body_radius, y), (px1 + body_radius + arm_length, y), 2)
-        
-        # Legs
-        leg_length = int(8 * zoom)
-        pygame.draw.line(surface, color1, (px1 - int(2 * zoom), y + body_radius), (px1 - int(2 * zoom), y + body_radius + leg_length), 2)
-        pygame.draw.line(surface, color1, (px1 + int(2 * zoom), y + body_radius), (px1 + int(2 * zoom), y + body_radius + leg_length), 2)
-        
-        # Player 2 (right side)
-        px2 = x + 20
-        pygame.draw.circle(surface, color2, (px2, y), body_radius)
-        pygame.draw.circle(surface, color2, (px2, y - int(10 * zoom)), head_radius)
-        
-        # Eyes
-        pygame.draw.circle(surface, BLACK, (px2 - eye_offset, y - int(10 * zoom)), 1)
-        pygame.draw.circle(surface, BLACK, (px2 + eye_offset, y - int(10 * zoom)), 1)
-        
-        # Arms
-        pygame.draw.line(surface, color2, (px2 - body_radius, y), (px2 - body_radius - arm_length, y), 2)
-        pygame.draw.line(surface, color2, (px2 + body_radius, y), (px2 + body_radius + arm_length, y), 2)
-        
-        # Legs
-        pygame.draw.line(surface, color2, (px2 - int(2 * zoom), y + body_radius), (px2 - int(2 * zoom), y + body_radius + leg_length), 2)
-        pygame.draw.line(surface, color2, (px2 + int(2 * zoom), y + body_radius), (px2 + int(2 * zoom), y + body_radius + leg_length), 2)
 
     def _is_too_close(self, platforms, candidate, pad_x, pad_y):
         """Reject platform placement when padded candidate bounds collide with any existing platform."""
