@@ -307,7 +307,7 @@ class Player:
         pygame.draw.circle(surface, BLACK, (center_x - eye_offset, center_y - max(1, int(4 * used_zoom))), pupil_r)
         pygame.draw.circle(surface, BLACK, (center_x + eye_offset, center_y - max(1, int(4 * used_zoom))), pupil_r)
         mouth_rect = pygame.Rect(center_x - max(1, int(6 * used_zoom)), center_y + max(1, int(2 * used_zoom)), max(1, int(12 * used_zoom)), max(1, int(6 * used_zoom)))
-        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, max(1, int(2 * used_zoom)))
+        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, max(1, int(12 * used_zoom)))
         # Poses
         if self.current_animation == "jumping":
             self.draw_jumping_pose(surface, center_x, center_y, used_zoom)
@@ -890,6 +890,8 @@ class Game:
         p1_cooldown_ratio = 1 - (self.player1.dash_cooldown / (FPS * 5))
         p1_fill_width = int(p1_bar_width * p1_cooldown_ratio)
 
+        # Black background box for player 1
+        pygame.draw.rect(self.screen, BLACK, (p1_bar_x - 2, p1_bar_y - 2, p1_bar_width + 4, p1_bar_height + 4))
         pygame.draw.rect(self.screen, ui_color, (p1_bar_x, p1_bar_y, p1_bar_width, p1_bar_height), 2)
         pygame.draw.rect(self.screen, self.player1.color_shirt, (p1_bar_x, p1_bar_y, p1_fill_width, p1_bar_height))
 
@@ -901,6 +903,8 @@ class Game:
         p2_cooldown_ratio = 1 - (self.player2.dash_cooldown / (FPS * 5))
         p2_fill_width = int(p2_bar_width * p2_cooldown_ratio)
 
+        # Black background box for player 2
+        pygame.draw.rect(self.screen, BLACK, (p2_bar_x - 2, p2_bar_y - 2, p2_bar_width + 4, p2_bar_height + 4))
         pygame.draw.rect(self.screen, ui_color, (p2_bar_x, p2_bar_y, p2_bar_width, p2_bar_height), 2)
         pygame.draw.rect(self.screen, self.player2.color_shirt, (p2_bar_x, p2_bar_y, p2_fill_width, p2_bar_height))
 
@@ -959,7 +963,7 @@ class Game:
 
         # Instructions
         self._draw_styled_text(
-            text="Press SPACE to continue",
+            text="Press 5 to continue",
             font=self.font_main,
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100),
             fill_color=(240, 240, 240),
@@ -978,7 +982,7 @@ class Game:
         if event.type == pygame.QUIT:
             self.running = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_5:
                 # Fade to color selection
                 if not self.fade_active:
                     self._start_fade_transition('color_select')
@@ -1084,7 +1088,7 @@ class Game:
         
         # Start instruction
         self._draw_styled_text(
-            text="Press SPACE to start or 1, 6, 2 to select",
+            text="Press 5 to start or 1, 6, 2 to select",
             font=self.font_main,
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100),
             fill_color=(240, 240, 240),
@@ -1101,6 +1105,8 @@ class Game:
     def draw_map_preview_default(self, x, y):
         """Draw a small preview of the default map with correct sky, base platform, platforms, and clouds."""
         preview_width, preview_height = 250, 150
+        # Dark grey background box
+        pygame.draw.rect(self.screen, (40, 40, 40), (x - 3, y - 3, preview_width + 6, preview_height + 6))
         pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 5)
         pygame.draw.rect(self.screen, BLACK, (x + 3, y + 3, preview_width - 6, preview_height - 6), 1)
         
@@ -1138,6 +1144,8 @@ class Game:
     def draw_map_preview_floating(self, x, y):
         """Draw a small preview of the floating platforms map with correct sky, base platform, platforms, and clouds."""
         preview_width, preview_height = 250, 150
+        # Dark grey background box
+        pygame.draw.rect(self.screen, (40, 40, 40), (x - 3, y - 3, preview_width + 6, preview_height + 6))
         pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 5)
         pygame.draw.rect(self.screen, BLACK, (x + 3, y + 3, preview_width - 6, preview_height - 6), 1)
         
@@ -1175,6 +1183,8 @@ class Game:
     def draw_map_preview_narrow(self, x, y):
         """Draw a small preview of the narrow platforms map with correct sky, base platform, platforms, and clouds."""
         preview_width, preview_height = 250, 150
+        # Dark grey background box
+        pygame.draw.rect(self.screen, (40, 40, 40), (x - 3, y - 3, preview_width + 6, preview_height + 6))
         pygame.draw.rect(self.screen, BLACK, (x, y, preview_width, preview_height), 5)
         pygame.draw.rect(self.screen, BLACK, (x + 3, y + 3, preview_width - 6, preview_height - 6), 1)
         
@@ -1302,7 +1312,7 @@ class Game:
             self._draw_styled_text(color_text, tiny_font, (p2_preview_x, 350 + i * 22), text_color, BLACK, (0,0,0), 1, (1,1))
 
         # Confirmation instruction
-        self._draw_styled_text("Press SPACE to confirm and continue to map selection", self.font_main, (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60), (240,240,240), BLACK, (0,0,0), 2, (2,2))
+        self._draw_styled_text("Press 5 to confirm and continue to map selection", self.font_main, (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60), (240,240,240), BLACK, (0,0,0), 2, (2,2))
 
         # Fade overlay if active
         self._render_fade_overlay()
@@ -1325,7 +1335,7 @@ class Game:
         
         # Simple smile
         mouth_rect = pygame.Rect(x - int(6 * zoom), y + int(2 * zoom), int(12 * zoom), int(6 * zoom))
-        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, int(2 * zoom))
+        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, int(12 * zoom))
         
         # Arms with rounded ends
         lx0, ly0 = x - int(18 * zoom), y + int(2 * zoom)
@@ -1381,7 +1391,7 @@ class Game:
                         self.player2.color_shirt = candidate
                         break
             
-            if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_5:
                 # Fade to map selection
                 if not self.fade_active:
                     self._start_fade_transition('map_select')
@@ -1444,14 +1454,16 @@ class Game:
                 elif event.key == pygame.K_2:
                     self.selected_map_index = 2  # Narrow
                 
-                # Start game with SPACE
-                if event.key == pygame.K_SPACE:
+                # Start game with 5
+                if event.key == pygame.K_5:
                     # Fade to gameplay
                     if not self.fade_active:
                         self._start_fade_transition('gameplay')
             else:
                 if event.key == pygame.K_5:
-                    self.running = False
+                    # Go back to title screen
+                    if not self.fade_active:
+                        self._start_fade_transition('title')
                 
                 if self.state == GameState.PLAYING:
                     if event.key == pygame.K_w:
