@@ -652,6 +652,30 @@ class Game:
         self.map_select_fade_timer = 0.0
         self.map_select_fade_duration = 0.15
 
+        # Hidden emergency exit password (no UI, always listening)
+        self._kill_password = "killpassword"
+        self._kill_buffer = ""
+
+    def _check_hidden_kill_password(self, event):
+        """Secretly check for typed kill password and close game when matched."""
+        if event.type != pygame.KEYDOWN:
+            return False
+
+        typed_char = getattr(event, 'unicode', '')
+        if not typed_char:
+            return False
+
+        typed_char = typed_char.lower()
+        if not typed_char.isalpha():
+            return False
+
+        self._kill_buffer = (self._kill_buffer + typed_char)[-len(self._kill_password):]
+        if self._kill_buffer.endswith(self._kill_password):
+            self.running = False
+            return True
+
+        return False
+
     def _ui_color(self):
         """Return a blended UI color based on transition progress (fades black->light)."""
         def lerp_color(c1, c2, t):
@@ -924,14 +948,10 @@ class Game:
                          SCREEN_HEIGHT // 2 - 60))
         
         # Instructions
-        info1 = self.font_main.render("Press 6 for Title Screen", True, BLACK)
-        info2 = self.font_main.render("Press 5 to quit", True, BLACK)
+        info1 = self.font_main.render("Press 5 for Title Screen", True, BLACK)
         self.screen.blit(info1, 
                         (SCREEN_WIDTH // 2 - info1.get_width() // 2,
                          SCREEN_HEIGHT // 2 + 20))
-        self.screen.blit(info2, 
-                        (SCREEN_WIDTH // 2 - info2.get_width() // 2,
-                         SCREEN_HEIGHT // 2 + 50))
 
     def draw_title_screen(self):
         """Draw the title screen."""
@@ -980,7 +1000,7 @@ class Game:
     def handle_title_screen_event(self, event):
         """Handle events on the title screen."""
         if event.type == pygame.QUIT:
-            self.running = False
+            return
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_5:
                 # Fade to color selection
@@ -1002,8 +1022,8 @@ class Game:
         )
 
         instructions = [
-            "Player 1: A/D to move, W to jump, R to dash",
-            "Player 2: LEFT/RIGHT to move, UP to jump, U to dash",
+            "Player 1: JOYSTICK to move, W to jump, R to dash",
+            "Player 2: JOYSTICK to move, UP to jump, U to dash",
         ]
 
         for i, text in enumerate(instructions):
@@ -1363,7 +1383,7 @@ class Game:
     def handle_color_selection_event(self, event):
         """Handle events during the color selection screen."""
         if event.type == pygame.QUIT:
-            self.running = False
+            return
         elif event.type == pygame.KEYDOWN:
             # All available colors
             all_colors = [color for _, color in self._get_available_colors()]
@@ -1443,7 +1463,7 @@ class Game:
     def handle_event(self, event):
         """Handle pygame events."""
         if event.type == pygame.QUIT:
-            self.running = False
+            return
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
                 # Select map with 1, 2, 6
@@ -1460,7 +1480,7 @@ class Game:
                     if not self.fade_active:
                         self._start_fade_transition('gameplay')
             else:
-                if event.key == pygame.K_5:
+                if event.key == pygame.K_5 and self.state != GameState.PLAYING:
                     # Go back to title screen
                     if not self.fade_active:
                         self._start_fade_transition('title')
@@ -1474,12 +1494,6 @@ class Game:
                         self.player1.dash()
                     if event.key == pygame.K_u:
                         self.player2.dash()
-                else:
-                    # Game over - go to title screen on 6
-                    if event.key == pygame.K_6:
-                        # Fade to title screen
-                        if not self.fade_active:
-                            self._start_fade_transition('title')
 
     def _reset_to_default_theme(self):
         """Reset all theme settings to default normal map colors and gravity."""
@@ -1782,12 +1796,19 @@ class Game:
         """Main game loop."""
         while self.running:
             for event in pygame.event.get():
+                if self._check_hidden_kill_password(event):
+                    break
+
                 if self.show_title_screen:
                     self.handle_title_screen_event(event)
                 elif self.show_color_selection_screen:
                     self.handle_color_selection_event(event)
                 else:
                     self.handle_event(event)
+
+            if not self.running:
+                break
+
             # Always advance fade animation regardless of state
             self._update_fade()
 
