@@ -897,7 +897,7 @@ class Game:
         avg = (control_color[0] + control_color[1] + control_color[2]) / 3
         outline = BLACK if avg > 100 else WHITE
         self._draw_styled_text("P1: JOYSTICK move, W jump, R dash", self.font_small, (10 + 180, 50 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
-        self._draw_styled_text("P2: JOYSTICK move, UP jump, U dash", self.font_small, (10 + 210, 75 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
+        self._draw_styled_text("P2: JOYSTICK move, UP jump, U dash", self.font_small, (10 + 180, 75 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
         
         # Match timer
         timer_text = f"Time: {self.match_seconds}s"
