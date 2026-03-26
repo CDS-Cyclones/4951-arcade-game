@@ -1038,8 +1038,8 @@ class Game:
         )
 
         instructions = [
-            "Player 1: JOYSTICK to move, W to jump, R to dash",
-            "Player 2: JOYSTICK to move, UP to jump, U to dash",
+            "Player 1: JOYSTICK to move, DOUBLE JUMP, DASH",
+            "Player 2: JOYSTICK to move, DOUBLE JUMP, DASH",
         ]
 
         for i, text in enumerate(instructions):
