@@ -267,7 +267,7 @@ class Player:
             self.dash_cooldown = FPS * 5  # 5 seconds cooldown
             self.vx = self.dash_speed * self.direction
 
-    def draw(self, surface, zoom, cam_x, cam_y):
+    def draw(self, surface, zoom, cam_x, cam_y, is_upside_down=False):
         # Slight smoothing in idle only
         used_zoom = zoom
         if self.current_animation == "idle":
@@ -308,7 +308,14 @@ class Player:
         pygame.draw.circle(surface, BLACK, (center_x - eye_offset, center_y - max(1, int(4 * used_zoom))), pupil_r)
         pygame.draw.circle(surface, BLACK, (center_x + eye_offset, center_y - max(1, int(4 * used_zoom))), pupil_r)
         mouth_rect = pygame.Rect(center_x - max(1, int(6 * used_zoom)), center_y + max(1, int(2 * used_zoom)), max(1, int(12 * used_zoom)), max(1, int(6 * used_zoom)))
-        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, max(1, int(12 * used_zoom)))
+        if is_upside_down:
+            open_mouth_rect = mouth_rect.inflate(max(1, int(2 * used_zoom)), max(1, int(2 * used_zoom)))
+            pygame.draw.ellipse(surface, BLACK, open_mouth_rect)
+        else:
+            pygame.draw.ellipse(surface, BLACK, mouth_rect)
+            mouth_mask = mouth_rect.copy()
+            mouth_mask.height = max(1, mouth_rect.height // 2)
+            pygame.draw.rect(surface, self.color_shirt, mouth_mask)
         # Poses
         if self.current_animation == "jumping":
             self.draw_jumping_pose(surface, center_x, center_y, used_zoom)
@@ -1371,7 +1378,10 @@ class Game:
         
         # Simple smile
         mouth_rect = pygame.Rect(x - int(6 * zoom), y + int(2 * zoom), int(12 * zoom), int(6 * zoom))
-        pygame.draw.arc(surface, BLACK, mouth_rect, math.pi, 2 * math.pi, int(12 * zoom))
+        pygame.draw.ellipse(surface, BLACK, mouth_rect)
+        mouth_mask = mouth_rect.copy()
+        mouth_mask.height = max(1, mouth_rect.height // 2)
+        pygame.draw.rect(surface, color, mouth_mask)
         
         # Arms with rounded ends
         lx0, ly0 = x - int(18 * zoom), y + int(2 * zoom)
@@ -1464,8 +1474,8 @@ class Game:
                 alpha = min(1.0, self.portal_fade_timer / self.portal_fade_duration)
             self.portal.draw(self.screen, zoom, cam_x, cam_y, alpha)
         
-        self.player1.draw(self.screen, zoom, cam_x, cam_y)
-        self.player2.draw(self.screen, zoom, cam_x, cam_y)
+        self.player1.draw(self.screen, zoom, cam_x, cam_y, self.is_upside_down)
+        self.player2.draw(self.screen, zoom, cam_x, cam_y, self.is_upside_down)
         
         # Draw UI overlay
         if self.state == GameState.PLAYING:
