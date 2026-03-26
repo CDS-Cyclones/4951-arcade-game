@@ -35,6 +35,7 @@ GROUND_HEIGHT = 140
 # Game timing
 TAG_COOLDOWN = 30
 MATCH_DURATION = 60
+MENU_SELECT_COOLDOWN_FRAMES = 8
 
 # Colors
 WHITE = (235, 235, 235)
@@ -623,6 +624,7 @@ class Game:
         # Fonts
         self.font_main = pygame.font.Font(None, 32)
         self.font_small = pygame.font.Font(None, 20)
+        self.font_tag_banner = pygame.font.Font(None, 48)
         self.font_big = pygame.font.Font(None, 64)
         self.font_huge = pygame.font.Font(None, 100)
         # Larger display fonts for title
@@ -652,6 +654,11 @@ class Game:
         self.map_select_fade_timer = 0.0
         self.map_select_fade_duration = 0.15
 
+        # Slight input debounce for menu selection changes
+        self.p1_color_select_cooldown = 0
+        self.p2_color_select_cooldown = 0
+        self.map_select_cooldown = 0
+
         # Hidden emergency exit password (no UI, always listening)
         self._kill_password = "killpassword"
         self._kill_buffer = ""
@@ -675,6 +682,15 @@ class Game:
             return True
 
         return False
+
+    def _tick_menu_input_cooldowns(self):
+        """Advance internal cooldowns so menu selection doesn't change too quickly."""
+        if self.p1_color_select_cooldown > 0:
+            self.p1_color_select_cooldown -= 1
+        if self.p2_color_select_cooldown > 0:
+            self.p2_color_select_cooldown -= 1
+        if self.map_select_cooldown > 0:
+            self.map_select_cooldown -= 1
 
     def _ui_color(self):
         """Return a blended UI color based on transition progress (fades black->light)."""
@@ -878,8 +894,8 @@ class Game:
         # Styled tag banner
         self._draw_styled_text(
             tagged_text,
-            self.font_main,
-            (SCREEN_WIDTH // 2, 10 + 15 + 4 + self.font_main.get_height() // 2),
+            self.font_tag_banner,
+            (SCREEN_WIDTH // 2, 10 + 18 + self.font_tag_banner.get_height() // 2),
             color,
             BLACK,
             (0, 0, 0),
@@ -896,8 +912,8 @@ class Game:
         # Choose outline for contrast
         avg = (control_color[0] + control_color[1] + control_color[2]) / 3
         outline = BLACK if avg > 100 else WHITE
-        self._draw_styled_text("P1: JOYSTICK move, W jump, R dash", self.font_small, (10 + 180, 50 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
-        self._draw_styled_text("P2: JOYSTICK move, UP jump, U dash", self.font_small, (10 + 180, 75 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
+        #self._draw_styled_text("P1: JOYSTICK move, W jump, R dash", self.font_small, (10 + 180, 50 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
+        #self._draw_styled_text("P2: JOYSTICK move, UP jump, U dash", self.font_small, (10 + 180, 75 + self.font_small.get_height() // 2), control_color, outline, (0,0,0), 2, (1,1))
         
         # Match timer
         timer_text = f"Time: {self.match_seconds}s"
@@ -948,7 +964,7 @@ class Game:
                          SCREEN_HEIGHT // 2 - 60))
         
         # Instructions
-        info1 = self.font_main.render("Press 5 for Title Screen", True, BLACK)
+        info1 = self.font_main.render("Press JUMP for Title Screen", True, BLACK)
         self.screen.blit(info1, 
                         (SCREEN_WIDTH // 2 - info1.get_width() // 2,
                          SCREEN_HEIGHT // 2 + 20))
@@ -983,7 +999,7 @@ class Game:
 
         # Instructions
         self._draw_styled_text(
-            text="Press 5 to continue",
+            text="Press JUMP to continue",
             font=self.font_main,
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100),
             fill_color=(240, 240, 240),
@@ -1002,7 +1018,7 @@ class Game:
         if event.type == pygame.QUIT:
             return
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_5:
+            if event.key == pygame.K_w:
                 # Fade to color selection
                 if not self.fade_active:
                     self._start_fade_transition('color_select')
@@ -1074,7 +1090,7 @@ class Game:
         
         # Map selection labels
         self._draw_styled_text(
-            text="1: Default",
+            text="Default Map",
             font=self.font_main,
             center=(100 + 60, 475),
             fill_color=(240, 240, 240),
@@ -1085,7 +1101,7 @@ class Game:
         )
         
         self._draw_styled_text(
-            text="6: Floating",
+            text="Floating Map",
             font=self.font_main,
             center=(400 + 70, 475),
             fill_color=(240, 240, 240),
@@ -1096,7 +1112,7 @@ class Game:
         )
         
         self._draw_styled_text(
-            text="2: Narrow",
+            text="Narrow Map",
             font=self.font_main,
             center=(700 + 65, 475),
             fill_color=(240, 240, 240),
@@ -1108,7 +1124,7 @@ class Game:
         
         # Start instruction
         self._draw_styled_text(
-            text="Press 5 to start or 1, 6, 2 to select",
+            text="Use JOYSTICK left/right to select, press JUMP to start",
             font=self.font_main,
             center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100),
             fill_color=(240, 240, 240),
@@ -1332,7 +1348,7 @@ class Game:
             self._draw_styled_text(color_text, tiny_font, (p2_preview_x, 350 + i * 22), text_color, BLACK, (0,0,0), 1, (1,1))
 
         # Confirmation instruction
-        self._draw_styled_text("Press 5 to confirm and continue to map selection", self.font_main, (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60), (240,240,240), BLACK, (0,0,0), 2, (2,2))
+        self._draw_styled_text("Press JUMP to confirm and continue to map selection", self.font_main, (SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60), (240,240,240), BLACK, (0,0,0), 2, (2,2))
 
         # Fade overlay if active
         self._render_fade_overlay()
@@ -1389,7 +1405,7 @@ class Game:
             all_colors = [color for _, color in self._get_available_colors()]
             
             # Player 1 color cycling with Q/S, A/D keys (skip any colors taken by player 2)
-            if event.key == pygame.K_q or event.key == pygame.K_s or event.key == pygame.K_a or event.key == pygame.K_d:
+            if (event.key == pygame.K_q or event.key == pygame.K_s or event.key == pygame.K_a or event.key == pygame.K_d) and self.p1_color_select_cooldown == 0:
                 current_index = all_colors.index(self.player1.color_shirt)
                 step = -1 if (event.key == pygame.K_q or event.key == pygame.K_a) else 1
                 # try up to len(all_colors) steps to find a color not taken
@@ -1398,10 +1414,11 @@ class Game:
                     candidate = all_colors[current_index]
                     if candidate != self.player2.color_shirt:
                         self.player1.color_shirt = candidate
+                        self.p1_color_select_cooldown = MENU_SELECT_COOLDOWN_FRAMES
                         break
             
             # Player 2 color cycling with P/DOWN keys (skip any colors taken by player 1)
-            if event.key == pygame.K_p or event.key == pygame.K_DOWN:
+            if (event.key == pygame.K_p or event.key == pygame.K_DOWN) and self.p2_color_select_cooldown == 0:
                 current_index = all_colors.index(self.player2.color_shirt)
                 step = -1 if event.key == pygame.K_p else 1
                 for _ in range(len(all_colors)):
@@ -1409,9 +1426,10 @@ class Game:
                     candidate = all_colors[current_index]
                     if candidate != self.player1.color_shirt:
                         self.player2.color_shirt = candidate
+                        self.p2_color_select_cooldown = MENU_SELECT_COOLDOWN_FRAMES
                         break
             
-            if event.key == pygame.K_5:
+            if event.key == pygame.K_w:
                 # Fade to map selection
                 if not self.fade_active:
                     self._start_fade_transition('map_select')
@@ -1466,21 +1484,21 @@ class Game:
             return
         elif event.type == pygame.KEYDOWN:
             if self.show_start_screen:
-                # Select map with 1, 2, 6
-                if event.key == pygame.K_1:
-                    self.selected_map_index = 0  # Default
-                elif event.key == pygame.K_6:
-                    self.selected_map_index = 1  # Floating
-                elif event.key == pygame.K_2:
-                    self.selected_map_index = 2  # Narrow
+                # Select map with Player 1 left/right controls
+                if event.key == pygame.K_a and self.map_select_cooldown == 0:
+                    self.selected_map_index = (self.selected_map_index - 1) % 3
+                    self.map_select_cooldown = MENU_SELECT_COOLDOWN_FRAMES
+                elif event.key == pygame.K_d and self.map_select_cooldown == 0:
+                    self.selected_map_index = (self.selected_map_index + 1) % 3
+                    self.map_select_cooldown = MENU_SELECT_COOLDOWN_FRAMES
                 
-                # Start game with 5
-                if event.key == pygame.K_5:
+                # Start game with Player 1 jump
+                if event.key == pygame.K_w:
                     # Fade to gameplay
                     if not self.fade_active:
                         self._start_fade_transition('gameplay')
             else:
-                if event.key == pygame.K_5 and self.state != GameState.PLAYING:
+                if event.key == pygame.K_w and self.state != GameState.PLAYING:
                     # Go back to title screen
                     if not self.fade_active:
                         self._start_fade_transition('title')
@@ -1811,6 +1829,7 @@ class Game:
 
             # Always advance fade animation regardless of state
             self._update_fade()
+            self._tick_menu_input_cooldowns()
 
             if self.show_title_screen:
                 self.draw_title_screen()
