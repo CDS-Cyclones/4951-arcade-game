@@ -666,9 +666,17 @@ class Game:
         self.p2_color_select_cooldown = 0
         self.map_select_cooldown = 0
 
+        # Game over cooldown (prevent immediate escape from win screen)
+        self.game_over_cooldown = 0
+        self.game_over_prompt_alpha = 0
+
         # Hidden emergency exit password (no UI, always listening)
         self._kill_password = "killpassword"
         self._kill_buffer = ""
+
+        # Hidden mid-game title reset sequence
+        self._midgame_title_password = "uiojkl"
+        self._midgame_title_buffer = ""
 
     def _check_hidden_kill_password(self, event):
         """Secretly check for typed kill password and close game when matched."""
@@ -686,6 +694,27 @@ class Game:
         self._kill_buffer = (self._kill_buffer + typed_char)[-len(self._kill_password):]
         if self._kill_buffer.endswith(self._kill_password):
             self.running = False
+            return True
+
+        return False
+
+    def _check_midgame_title_password(self, event):
+        """Check secret sequence and return to title with full reset when matched."""
+        if event.type != pygame.KEYDOWN:
+            return False
+
+        typed_char = getattr(event, 'unicode', '')
+        if not typed_char:
+            return False
+
+        typed_char = typed_char.lower()
+        if not typed_char.isalpha():
+            return False
+
+        self._midgame_title_buffer = (self._midgame_title_buffer + typed_char)[-len(self._midgame_title_password):]
+        if self._midgame_title_buffer.endswith(self._midgame_title_password):
+            self._midgame_title_buffer = ""
+            self.go_to_title_screen()
             return True
 
         return False
@@ -887,6 +916,9 @@ class Game:
                         self.state = GameState.GAME_OVER_P1
                     else:
                         self.state = GameState.GAME_OVER_P2
+                    # Start 5 second cooldown on win screen
+                    self.game_over_cooldown = 5 * FPS
+                    self.game_over_prompt_alpha = 0
 
     def draw_ui(self):
         """Draw HUD elements during gameplay."""
@@ -964,17 +996,25 @@ class Game:
             title = "PLAYER 2 WINS!"
             color = self.player2.color_shirt
         
-        # Title
-        title_surface = self.font_big.render(title, True, color)
-        self.screen.blit(title_surface, 
-                        (SCREEN_WIDTH // 2 - title_surface.get_width() // 2,
-                         SCREEN_HEIGHT // 2 - 60))
-        
-        # Instructions
-        info1 = self.font_main.render("Press JUMP for Title Screen", True, BLACK)
-        self.screen.blit(info1, 
-                        (SCREEN_WIDTH // 2 - info1.get_width() // 2,
-                         SCREEN_HEIGHT // 2 + 20))
+        # Title with black outline
+        self._draw_styled_text(
+            title,
+            self.font_huge,
+            (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 35),
+            color,
+            BLACK,
+            (0, 0, 0),
+            3,
+            (2, 2)
+        )
+
+        # Show continue prompt only after cooldown expires
+        if self.game_over_cooldown == 0:
+            info1 = self.font_main.render("Press JUMP to go to title", True, BLACK)
+            info1.set_alpha(self.game_over_prompt_alpha)
+            self.screen.blit(info1,
+                            (SCREEN_WIDTH // 2 - info1.get_width() // 2,
+                             SCREEN_HEIGHT // 2 + 30))
 
     def draw_title_screen(self):
         """Draw the title screen."""
@@ -1508,8 +1548,8 @@ class Game:
                     if not self.fade_active:
                         self._start_fade_transition('gameplay')
             else:
-                if event.key == pygame.K_w and self.state != GameState.PLAYING:
-                    # Go back to title screen
+                if event.key == pygame.K_w and self.state != GameState.PLAYING and self.game_over_cooldown == 0:
+                    # Go back to title screen (only after cooldown expires)
                     if not self.fade_active:
                         self._start_fade_transition('title')
                 
@@ -1631,17 +1671,31 @@ class Game:
         global GRAVITY
         GRAVITY = 0.2
 
-    def reset(self):
-        """Reset game state for a new match."""
+    def reset(self, reset_defaults=False):
+        """Reset game state for a new match.
+
+        Args:
+            reset_defaults: When True, reset colors/map/theme to default title-flow values.
+        """
         ground_spawn_y = self.ground_top - PLAYER_HEIGHT
-        # Preserve selected player colors
-        p1_color = self.player1.color_shirt if hasattr(self, 'player1') else RED
-        p2_color = self.player2.color_shirt if hasattr(self, 'player2') else BLUE
+        # Keep selected colors for normal match starts; only force defaults for full title reset.
+        if reset_defaults:
+            p1_color = RED
+            p2_color = BLUE
+        else:
+            p1_color = self.player1.color_shirt if hasattr(self, 'player1') else RED
+            p2_color = self.player2.color_shirt if hasattr(self, 'player2') else BLUE
+
         self.player1 = Player(200, ground_spawn_y, 1, p1_color)
         self.player2 = Player(MAP_WIDTH - 200, ground_spawn_y, 2, p2_color)
         
-        self.player1.is_tagged = True
-        self.player2.is_tagged = False
+        # Randomly decide who is tagged at start
+        if random.random() < 0.5:
+            self.player1.is_tagged = True
+            self.player2.is_tagged = False
+        else:
+            self.player1.is_tagged = False
+            self.player2.is_tagged = True
         self.tag_timer = 0
         
         self.p1_tag_time = 0
@@ -1649,10 +1703,15 @@ class Game:
         self.match_seconds = MATCH_DURATION
         self.frame_counter = 0
         self.state = GameState.PLAYING
+        self.game_over_cooldown = 0
+        self.game_over_prompt_alpha = 0
         
-        # Reset to default theme
-        self._reset_to_default_theme()
-        self._set_normal_gravity()
+        # Only do full defaults when returning to title after a completed game.
+        if reset_defaults:
+            self.current_map_type = 0
+            self.selected_map_index = 0
+            self._reset_to_default_theme()
+            self._set_normal_gravity()
         
         # Generate platforms based on currently loaded map type (not always default)
         if self.current_map_type == 0:  # Default
@@ -1676,7 +1735,7 @@ class Game:
     def go_to_title_screen(self):
         """Reset gameplay state, then show the DANGER THINGS title screen."""
         # Ensure a fresh gameplay state when players return from the title flow
-        self.reset()
+        self.reset(reset_defaults=True)
         # Show title flow
         self.show_title_screen = True
         self.show_color_selection_screen = False
@@ -1714,7 +1773,7 @@ class Game:
             elif self.selected_map_index == 2:  # Narrow
                 self._set_normal_gravity()
             self.show_start_screen = False
-            self.reset()  # Initialize gameplay (will use current_map_type to generate correct platforms)
+            self.reset(reset_defaults=False)  # Initialize gameplay without wiping selected colors/map
 
     def _update_fade(self):
         """Advance fade animation each frame no matter which screen is active."""
@@ -1827,6 +1886,9 @@ class Game:
                 if self._check_hidden_kill_password(event):
                     break
 
+                if self._check_midgame_title_password(event):
+                    continue
+
                 if self.show_title_screen:
                     self.handle_title_screen_event(event)
                 elif self.show_color_selection_screen:
@@ -1840,6 +1902,13 @@ class Game:
             # Always advance fade animation regardless of state
             self._update_fade()
             self._tick_menu_input_cooldowns()
+
+            # Tick down game over cooldown
+            if self.game_over_cooldown > 0:
+                self.game_over_cooldown -= 1
+
+            if self.state != GameState.PLAYING and self.game_over_cooldown == 0:
+                self.game_over_prompt_alpha = min(255, self.game_over_prompt_alpha + 10)
 
             if self.show_title_screen:
                 self.draw_title_screen()
