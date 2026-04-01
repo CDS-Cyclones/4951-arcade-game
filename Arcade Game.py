@@ -675,7 +675,7 @@ class Game:
         self._kill_buffer = ""
 
         # Hidden mid-game title reset sequence
-        self._midgame_title_password = "uiojkl"
+        self._midgame_title_password = "rtyfgh"
         self._midgame_title_buffer = ""
 
     def _check_hidden_kill_password(self, event):
